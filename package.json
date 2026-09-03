@@ -1,0 +1,24 @@
+{
+  "name": "m-opcgrow",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "scan:secrets": "node scripts/formal_secret_scan.mjs",
+    "check:config": "node scripts/validate-jsonc.mjs",
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "db:migrate:local": "wrangler d1 execute m-opcgrow-db --local --file=./migrations/0001_init.sql",
+    "db:migrate:remote": "wrangler d1 execute m-opcgrow-db --remote --file=./migrations/0001_init.sql"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "hono": "^4.6.14"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260811.1",
+    "typescript": "^5.6.3",
+    "wrangler": "^4.120.1"
+  }
+}

@@ -1,0 +1,12 @@
+# ============================================================
+# 本地开发环境变量示例（复制为 .dev.vars 供 `wrangler dev` 使用）
+# 生产环境请用 `wrangler secret put <KEY>` 逐条设置，不要提交本文件！
+# ============================================================
+
+# ✅ 必填：JWT 签名密钥（强随机，建议 >=32 字符）
+# 生成：node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+SESSION_SECRET=please-change-me-to-a-long-random-secret
+
+# ⚠️ 推荐：站点基础 URL
+# 本地开发用 http://localhost:8787；部署后改为你的真实域名
+BASE_URL=http://localhost:8787

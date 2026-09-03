@@ -1,0 +1,40 @@
+# 依赖
+node_modules/
+
+# Wrangler / Cloudflare 本地状态与缓存
+.wrangler/
+dist/
+.dev.vars
+.wrangler-*.json
+
+# 本地数据库文件（切勿提交，可能包含真实业务数据）
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+
+# 测试产物
+coverage/
+
+# 环境变量与密钥（严禁提交）
+.env
+.env.*
+.dev.vars.*
+*.pem
+*.key
+*.p12
+*.pfx
+
+# 编辑器 / 系统
+.idea/
+.vscode/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# 日志
+*.log
+npm-debug.log*

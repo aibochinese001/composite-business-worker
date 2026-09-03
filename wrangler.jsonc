@@ -1,0 +1,49 @@
+{
+  // ============================================================
+  // Cloudflare Worker 配置（wrangler v4, JSONC 支持注释）
+  //
+  // 🚀 第一次部署：直接跑 `npm run setup`，脚本会自动：
+  //   1. 创建 D1 数据库并回填下方 database_id
+  //   2. 创建 R2 bucket
+  //   3. 依序执行 migrations/*.sql
+  //   4. 设置 SESSION_SECRET
+  // 手动方式：`npx wrangler d1 create m-opcgrow-db` 拿到 ID 填到下面
+  // ============================================================
+  "name": "m-opcgrow",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-10",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // 默认部署到 workers.dev 子域，不与任何自定义域名冲突
+  "workers_dev": true,
+
+  // ⚠️ 自定义域名 / 路由：默认全部关闭，避免和部署者已有域名冲突。
+  // 需要自定义域名时，取消下面 routes 注释并替换为你的域名（也可在 Cloudflare
+  // 控制台 Workers → 你的 Worker → 设置 → 域名 里添加，效果相同）：
+  // "routes": [
+  //   { "pattern": "your-domain.com", "custom_domain": true }
+  // ]
+
+  "assets": {
+    "directory": "./static",
+    "binding": "ASSETS",
+    "not_found_handling": "none"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "m-opcgrow-db",
+      // setup 脚本会自动把真实 database_id 注入到这一行；部署前必须替换！
+      "database_id": "REPLACE_WITH_D1_DATABASE_ID"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "MEDIA",
+      "bucket_name": "m-opcgrow-media"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}
