@@ -1,0 +1,2546 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>管理后台</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="icon" href="/favicon.ico">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#10b981">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<script>
+if('serviceWorker' in navigator){ window.addEventListener('load', ()=>{ navigator.serviceWorker.register('/sw.js').catch(()=>{}); }); }
+
+(function () {
+  fetch('/api/site').then(function (r) { return r.json(); }).then(function (d) {
+    if (d && d.favicon) {
+      var link = document.createElement('link');
+      link.rel = 'icon';
+      link.href = d.favicon;
+      var m = /\.(png|jpe?g|gif|webp|svg|ico)$/i.exec(d.favicon);
+      if (m) {
+        var ext = m[1].toLowerCase().replace('jpeg', 'jpg');
+        link.type = 'image/' + (ext === 'svg' ? 'svg+xml' : ext === 'ico' ? 'x-icon' : ext);
+      }
+      document.head.appendChild(link);
+    }
+  }).catch(function () {});
+})();
+</script>
+<style>
+/* 编辑器音频块删除按钮（仅后台显示） */
+body:has(.admin-shell) .audio-player .ap-del { display: inline-flex; }
+.audio-player .ap-del {
+  display: none;
+  flex-shrink: 0;
+  width: 26px; height: 26px;
+  align-items: center; justify-content: center;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--bg-soft);
+  color: var(--text-muted);
+  font-size: .8rem;
+  cursor: pointer;
+  transition: border-color .15s ease, color .15s ease;
+}
+.audio-player .ap-del:hover { border-color: var(--danger); color: var(--danger); }
+/* 菜单管理 */
+.menu-item-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 12px; }
+.menu-item-head { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.menu-index { color: var(--text-muted); font-size: .85rem; min-width: 26px; }
+.menu-item-head .mn-label { width: 160px; }
+.menu-item-head .mn-url { flex: 1; min-width: 200px; }
+.mn-target { width: 110px; }
+.mn-ops { display: flex; gap: 4px; }
+.menu-children { margin-top: 10px; padding: 10px; background: var(--bg-soft); border-radius: 8px; }
+.menu-child-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
+.menu-child-row .mn-label { width: 140px; }
+.menu-child-row .mn-url { flex: 1; min-width: 180px; }
+.btn-danger-mini { background: none; border: 1px solid var(--danger); color: var(--danger); border-radius: 6px; padding: 4px 8px; cursor: pointer; }
+.btn-danger-mini:hover { background: rgba(255,107,107,.1); }
+/* 媒体库 */
+.media-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 14px; margin-top: 4px; }
+.media-card { position: relative; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; transition: transform .15s ease, box-shadow .15s ease; }
+.media-card:hover { transform: translateY(-3px); box-shadow: 0 8px 22px rgba(0,0,0,.35); border-color: var(--gold); }
+.media-thumb { position: relative; height: 130px; display: flex; align-items: center; justify-content: center; background: var(--bg-soft); overflow: hidden; }
+.media-thumb img, .media-thumb video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.media-thumb .media-icon { font-size: 2.6rem; opacity: .85; }
+.media-actions { position: absolute; left: 0; right: 0; bottom: 0; display: flex; background: rgba(0,0,0,.78); opacity: 0; transition: opacity .15s ease; z-index: 2; }
+.media-card:hover .media-actions { opacity: 1; }
+.media-actions button { flex: 1; background: none; border: none; color: #fff; font-size: .72rem; padding: 8px 2px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 3px; white-space: nowrap; }
+.media-actions button:hover { background: rgba(212,160,23,.28); color: var(--gold-soft); }
+.media-actions button.act-del:hover { background: rgba(248,81,73,.35); color: #ffb3ae; }
+.media-info { padding: 9px 11px; }
+.media-name { font-size: .8rem; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+.media-meta { font-size: .7rem; color: var(--text-muted); margin-top: 3px; }
+#view-media .admin-search { display: flex; gap: 8px; align-items: center; }
+#view-media .admin-search input { flex: 1; width: auto; }
+#view-media .admin-search .btn-ghost { white-space: nowrap; }
+@media (max-width: 768px) {
+  .media-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .media-thumb { height: 110px; }
+}
+/* 关联内容 */
+.link-groups { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.link-group { background: var(--bg-soft); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+.link-group-head { font-weight: 700; color: var(--gold); margin-bottom: 10px; font-size: .9rem; }
+.link-search-input { width: 100%; padding: 8px 12px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: .85rem; }
+.link-search-input:focus { outline: none; border-color: var(--gold); }
+.link-results { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; max-height: 180px; overflow-y: auto; }
+.link-result-item { padding: 7px 10px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; font-size: .82rem; }
+.link-result-item:hover { border-color: var(--gold); color: var(--gold); }
+.link-empty { color: var(--text-muted); font-size: .8rem; padding: 6px 2px; }
+.link-selected { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+.link-chip { display: flex; align-items: center; gap: 4px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; }
+.link-chip-title { flex: 1; font-size: .82rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.link-chip-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: .8rem; padding: 2px 5px; border-radius: 4px; }
+.link-chip-btn:hover:not(:disabled) { color: var(--gold); background: var(--bg-soft); }
+.link-chip-btn:disabled { opacity: .3; cursor: not-allowed; }
+.link-chip-del:hover { color: var(--danger) !important; }
+@media (max-width: 768px) { .link-groups { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div id="loginGate" class="container main-content" style="max-width:400px;">
+  <div class="card form-card">
+    <h1 style="text-align:center;margin-bottom:20px;">管理员登录</h1>
+    <div class="form-group"><label>邮箱</label><input type="email" id="a_email"></div>
+    <div class="form-group"><label>密码</label><input type="password" id="a_password"></div>
+    <div class="form-error" id="a_err"></div>
+    <button class="btn-primary" style="width:100%;" onclick="adminLogin()">登录</button>
+  </div>
+</div>
+
+<div id="adminShell" class="admin-shell" style="display:none;">
+  <aside class="admin-sidebar" id="adminSidebar">
+    <a href="/" class="logo" id="adminLogo">财经资讯站</a>
+    <a data-view="dashboard" class="active" onclick="showView('dashboard')">📊 概览</a>
+    <a data-view="articles" onclick="showView('articles')">📝 文章管理</a>
+    <a data-view="courses" onclick="showView('courses')">🎬 课程管理</a>
+    <a data-view="products" onclick="showView('products')">🛍 商品管理</a>
+    <a data-view="categories" onclick="showView('categories')">🏷️ 分类管理</a>
+    <a data-view="about" onclick="showView('about')">📄 关于我们</a>
+    <a data-view="users" onclick="showView('users')">👥 用户</a>
+    <a data-view="orders" onclick="showView('orders')">💰 订单</a>
+    <a data-view="product-orders" onclick="showView('product-orders')">📦 商品订单</a>
+    <a data-view="invites" onclick="showView('invites')">🎁 邀请统计</a>
+    <a data-view="withdrawals" onclick="showView('withdrawals')">💸 提现管理</a>
+    <a data-view="comments" onclick="showView('comments')">💬 评论管理</a>
+    <a data-view="media" onclick="showView('media')">🖼 媒体库</a>
+    <a data-view="ads" onclick="showView('ads')">📢 广告管理</a>
+    <a data-view="menus" onclick="showView('menus')">📑 菜单管理</a>
+    <a data-view="membership" onclick="showView('membership')">👑 会员管理</a>
+    <a data-view="settings" onclick="showView('settings')">⚙️ 系统设置</a>
+    <a href="/api/logout" style="margin-top:20px;color:var(--danger);">退出登录</a>
+  </aside>
+  <main class="admin-main">
+    <button class="admin-menu-toggle" id="adminMenuToggle" aria-label="打开菜单">☰ 菜单</button>
+
+    <section id="view-dashboard" class="view">
+      <div class="admin-header"><h1>概览</h1><button class="btn-ghost" onclick="loadStats()">刷新</button></div>
+      <div class="stat-grid" id="statGrid"></div>
+      <div class="pending-banner" id="pendingBanner" style="display:none;"></div>
+      <p class="dashboard-motto">专注、专研，创造价值，成就未来！</p>
+    </section>
+
+    <section id="view-articles" class="view" style="display:none;">
+      <div class="admin-header"><h1 id="articlesTitle">文章管理</h1><div class="admin-search"><input id="articleSearch" placeholder="搜索标题 / ID..." oninput="filterArticles()"></div><button class="btn-primary" id="articlesNewBtn" onclick="openEditor()">＋ 新建文章</button></div>
+      <div id="articleList"></div>
+      <div id="articleEditor" style="display:none;">
+        <div class="toolbar-row">
+          <input id="e_title" placeholder="标题" style="flex:1;min-width:200px;">
+          <select id="e_access" onchange="toggleArticlePrice()">
+            <option value="public">公开</option>
+            <option value="paid">付费</option>
+            <option value="vip">VIP</option>
+          </select>
+          <input id="e_price" placeholder="单独价格 $" type="number" step="0.01" min="0" style="width:130px;display:none;">
+          <select id="e_status"><option value="draft">草稿</option><option value="published">发布</option></select>
+          <select id="e_category"></select>
+        </div>
+        <div class="toolbar-row">
+          <input id="e_slug" placeholder="slug(可选)" style="flex:1;min-width:160px;">
+          <input id="e_excerpt" placeholder="摘要/导语" style="flex:2;min-width:200px;">
+        </div>
+        <div class="toolbar-row">
+          <label style="display:flex;align-items:center;gap:4px;font-size:.85rem;"><input type="checkbox" id="e_is_top"> 置顶</label>
+          <input id="e_sort_order" placeholder="排序(数字越小越靠前)" type="number" style="width:180px;" value="0">
+        </div>
+        <div class="toolbar-row">
+          <span style="white-space:nowrap;">封面：</span>
+          <input id="e_cover" placeholder="封面图 URL（可手填或上传）" style="flex:2;min-width:200px;">
+          <button class="btn-ghost" onclick="uploadCover()">🖼 上传封面</button>
+          <button class="btn-ghost" id="coverClearBtn" style="display:none;" onclick="clearCover()">✕ 移除</button>
+          <img id="coverPreview" alt="封面预览" style="display:none;height:44px;max-width:120px;border-radius:6px;object-fit:cover;border:1px solid var(--border);">
+          <input type="file" id="coverInput" accept="image/*" style="display:none;">
+        </div>
+        <div class="editor-toolbar">
+          <button onmousedown="_saveSel()" onclick="ed('bold')"><b>B</b></button>
+          <button onmousedown="_saveSel()" onclick="ed('italic')"><i>I</i></button>
+          <button onmousedown="_saveSel()" onclick="ed('underline')"><u>U</u></button>
+          <button onmousedown="_saveSel()" onclick="ed('strikeThrough')"><s>S</s></button>
+          <select onmousedown="_saveSel()" onchange="ed('formatBlock', this.value); this.value='';">
+            <option value="">格式</option><option value="<h1>">H1</option><option value="<h2>">H2</option>
+            <option value="<h3>">H3</option><option value="<p>">正文</option><option value="<blockquote>">引用</option>
+            <option value="<pre>">代码块</option>
+          </select>
+          <button onmousedown="_saveSel()" onclick="ed('insertUnorderedList')">• 列表</button>
+          <button onmousedown="_saveSel()" onclick="ed('insertOrderedList')">1. 列表</button>
+          <button onmousedown="_saveSel()" onclick="ed('removeFormat')">清除格式</button>
+          <button onmousedown="_saveSel()" onclick="ed('justifyLeft')" title="左对齐">左</button>
+          <button onmousedown="_saveSel()" onclick="ed('justifyCenter')" title="居中">中</button>
+          <button onmousedown="_saveSel()" onclick="ed('justifyRight')" title="右对齐">右</button>
+          <button onmousedown="_saveSel()" onclick="insertLink()">🔗 链接</button>
+          <button onmousedown="_saveSel()" onclick="uploadImage()">🖼 上传图片</button>
+          <button onmousedown="_saveSel()" onclick="embedYouTube()">▶ YouTube</button>
+          <button onmousedown="_saveSel()" onclick="embedBilibili()">📺 Bilibili</button>
+          <button onmousedown="_saveSel()" onclick="embedDirectVideo()">🎬 视频直链</button>
+          <button onmousedown="_saveSel()" onclick="gUpload('editor','audioInput')">🎵 上传音频</button>
+          <button onmousedown="_saveSel()" onclick="gTable('editor')">⊞ 表格</button>
+          <button onmousedown="_saveSel()" onclick="gColumns('editor')">▦ 分栏</button>
+          <button onmousedown="_saveSel()" onclick="gIframe('editor')">🌐 嵌入网页</button>
+          <label class="color-btn" onmousedown="_saveSel()">颜色 <input type="color" value="#e6edf3" onchange="gColor('editor', this.value)"></label>
+          <label class="color-btn" onmousedown="_saveSel()">背景 <input type="color" value="#ffff00" onchange="gHilite('editor', this.value)"></label>
+        </div>
+        <div class="editor-area" id="editor" contenteditable="true"></div>
+        <input type="file" id="imgInput" accept="image/*" style="display:none;">
+        <input type="file" id="audioInput" accept="audio/*" style="display:none;">
+        <div class="link-section" style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px;">
+          <h3 style="color:var(--gold);margin-bottom:12px;">🔗 关联内容</h3>
+          <div class="link-groups">
+            <div class="link-group">
+              <div class="link-group-head">📄 相关文章</div>
+              <input class="link-search-input" id="linkSearch_article" placeholder="搜索文章标题，点击结果添加..." oninput="searchLink('article')">
+              <div class="link-results" id="linkResults_article"></div>
+              <div class="link-selected" id="linkSelected_article"></div>
+            </div>
+            <div class="link-group">
+              <div class="link-group-head">🎓 关联课程</div>
+              <input class="link-search-input" id="linkSearch_course" placeholder="搜索课程标题，点击结果添加..." oninput="searchLink('course')">
+              <div class="link-results" id="linkResults_course"></div>
+              <div class="link-selected" id="linkSelected_course"></div>
+            </div>
+            <div class="link-group">
+              <div class="link-group-head">🛍 热门商品</div>
+              <input class="link-search-input" id="linkSearch_product" placeholder="搜索商品名称，点击结果添加..." oninput="searchLink('product')">
+              <div class="link-results" id="linkResults_product"></div>
+              <div class="link-selected" id="linkSelected_product"></div>
+            </div>
+          </div>
+        </div>
+        <div class="toolbar-row" style="margin-top:16px;">
+          <button class="btn-primary" onclick="saveArticle()">保存</button>
+          <button class="btn-ghost" onclick="closeEditor()">取消</button>
+          <span id="e_editId" style="color:var(--text-muted);font-size:.85rem;"></span>
+        </div>
+      </div>
+    </section>
+
+    <section id="view-categories" class="view" style="display:none;">
+      <div class="admin-header"><h1>分类管理</h1></div>
+      <div class="toolbar-row">
+        <input id="c_name" placeholder="分类名">
+        <input id="c_slug" placeholder="slug(可选)">
+        <input id="c_desc" placeholder="描述(可选)">
+        <select id="c_type"><option value="article">文章分类</option><option value="course">课程分类</option><option value="product">商品分类</option></select>
+        <input id="c_order" placeholder="排序" type="number" style="width:80px;" value="0">
+        <input type="hidden" id="c_edit_id" value="">
+        <button class="btn-primary" id="c_save_btn" onclick="saveCategory()">添加</button>
+        <button class="btn-ghost" id="c_cancel_btn" style="display:none;" onclick="cancelEditCategory()">取消</button>
+      </div>
+      <div id="categoryList"></div>
+    </section>
+
+    <section id="view-about" class="view" style="display:none;">
+      <div class="admin-header"><h1>关于我们</h1><button class="btn-primary" onclick="saveAbout()">保存</button></div>
+      <p style="color:var(--text-muted);font-size:.85rem;margin:0 0 12px;">编辑「关于我们」页面的富文本内容，保存后前台 /about 页面即时生效。</p>
+      <div class="editor-toolbar">
+        <button onmousedown="_saveSel()" onclick="gExec('about_editor','bold')"><b>B</b></button>
+        <button onmousedown="_saveSel()" onclick="gExec('about_editor','italic')"><i>I</i></button>
+        <button onmousedown="_saveSel()" onclick="gExec('about_editor','underline')"><u>U</u></button>
+        <button onmousedown="_saveSel()" onclick="gExec('about_editor','strikeThrough')"><s>S</s></button>
+        <select onmousedown="_saveSel()" onchange="gExec('about_editor','formatBlock', this.value); this.value='';">
+          <option value="">格式</option><option value="<h1>">H1</option><option value="<h2>">H2</option>
+          <option value="<h3>">H3</option><option value="<p>">正文</option><option value="<blockquote>">引用</option>
+        </select>
+        <button onmousedown="_saveSel()" onclick="gExec('about_editor','insertUnorderedList')">• 列表</button>
+        <button onmousedown="_saveSel()" onclick="gExec('about_editor','insertOrderedList')">1. 列表</button>
+        <button onmousedown="_saveSel()" onclick="gExec('about_editor','removeFormat')">清除格式</button>
+        <button onmousedown="_saveSel()" onclick="gLink('about_editor')">🔗 链接</button>
+        <button onmousedown="_saveSel()" onclick="gUpload('about_editor','aboutImgInput')">🖼 图片</button>
+        <button onmousedown="_saveSel()" onclick="gYouTube('about_editor')">▶ YouTube</button>
+        <button onmousedown="_saveSel()" onclick="gBilibili('about_editor')">📺 Bilibili</button>
+        <button onmousedown="_saveSel()" onclick="gDirectVideo('about_editor')">🎬 视频直链</button>
+        <button onmousedown="_saveSel()" onclick="gUpload('about_editor','aboutAudioInput')">🎵 上传音频</button>
+        <button onmousedown="_saveSel()" onclick="gTable('about_editor')">⊞ 表格</button>
+        <button onmousedown="_saveSel()" onclick="gColumns('about_editor')">▦ 分栏</button>
+        <button onmousedown="_saveSel()" onclick="gIframe('about_editor')">🌐 嵌入网页</button>
+        <label class="color-btn" onmousedown="_saveSel()">颜色 <input type="color" value="#e6edf3" onchange="gColor('about_editor', this.value)"></label>
+        <label class="color-btn" onmousedown="_saveSel()">背景 <input type="color" value="#ffff00" onchange="gHilite('about_editor', this.value)"></label>
+      </div>
+      <div class="editor-area" id="about_editor" contenteditable="true"></div>
+      <input type="file" id="aboutImgInput" accept="image/*" style="display:none;">
+      <input type="file" id="aboutAudioInput" accept="audio/*" style="display:none;">
+    </section>
+
+    <section id="view-media" class="view" style="display:none;">
+      <div class="admin-header">
+        <h1>媒体库</h1>
+        <div class="admin-search"><input id="mediaSearch" placeholder="搜索文件名..." onkeydown="if(event.key==='Enter'){searchMedia();}"><button class="btn-ghost" onclick="searchMedia()">搜索</button></div>
+        <button class="btn-primary" onclick="document.getElementById('mediaFileInput').click()">＋ 上传文件</button>
+        <input type="file" id="mediaFileInput" multiple style="display:none;">
+      </div>
+      <div class="filter-bar">
+        <span class="filter-label">类型</span>
+        <select id="mediaType" onchange="loadMedia(1)">
+          <option value="all">全部</option>
+          <option value="image">图片</option>
+          <option value="video">视频</option>
+          <option value="audio">音频</option>
+          <option value="document">文档</option>
+          <option value="archive">压缩包</option>
+          <option value="other">其他</option>
+        </select>
+        <span class="filter-label">提示</span>
+        <span style="color:var(--text-muted);font-size:.8rem;">鼠标悬停文件可复制链接 / 查看 / 删除</span>
+      </div>
+      <div class="media-grid" id="mediaGrid"></div>
+      <div id="mediaPager"></div>
+    </section>
+
+    <section id="view-ads" class="view" style="display:none;">
+      <div class="admin-header"><h1>广告管理</h1><button class="btn-primary" onclick="openAdEditor()">＋ 添加广告</button></div>
+      <div id="adList"></div>
+      <div id="adEditor" style="display:none;margin-top:16px;">
+        <div class="form-group"><label>广告标题</label><input id="ad_title" placeholder="广告标题"></div>
+        <div class="form-group"><label>封面图片</label>
+          <div style="display:flex;gap:10px;"><input id="ad_image" placeholder="/media/xxx.png 或留空" style="flex:1;"><button class="btn-ghost" onclick="uploadTo('ad_image')">上传</button></div>
+        </div>
+        <div class="form-group"><label>跳转链接（新标签页打开）</label><input id="ad_url" placeholder="https://..."></div>
+        <div class="form-group"><label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" id="ad_status" checked> 启用</label></div>
+        <div class="form-group"><label>排序（数字越小越靠前）</label><input id="ad_order" type="number" value="0" style="width:120px;"></div>
+        <div class="toolbar-row" style="margin-top:16px;">
+          <button class="btn-primary" onclick="saveAd()">保存</button>
+          <button class="btn-ghost" onclick="closeAdEditor()">取消</button>
+          <span id="ad_editId" style="color:var(--text-muted);font-size:.85rem;"></span>
+        </div>
+      </div>
+    </section>
+
+    <section id="view-membership" class="view" style="display:none;">
+      <div class="admin-header"><h1>会员管理</h1><button class="btn-primary" onclick="showPlanEditor()">＋ 添加会员项</button></div>
+
+      <div class="card" style="padding:16px;margin-bottom:16px;">
+        <h3 style="color:var(--gold);margin:0 0 8px;">VIP 会员权限</h3>
+        <div class="pay-method-checks" style="margin-bottom:8px;">
+          <label><input type="checkbox" id="mvip_article_access"> 开放付费文章</label>
+          <label><input type="checkbox" id="mvip_course_access"> 开放付费课程</label>
+          <label><input type="checkbox" id="mvip_virtual_access"> 免费获取虚拟商品</label>
+        </div>
+        <div class="toolbar-row">
+          <label>商品折扣 (%) <input id="mvip_product_discount" style="width:80px;" value="100"></label>
+          <span style="color:var(--text-muted);font-size:.8rem;">VIP 购买商品折扣，80 = 8折，100 = 原价</span>
+          <button class="btn-primary" onclick="saveVipSettings()">保存权限设置</button>
+        </div>
+      </div>
+
+      <div id="planList"></div>
+
+      <div id="planEditor" style="display:none;margin-top:16px;" class="card">
+        <div class="admin-header"><h2 id="planEditorTitle">添加会员项</h2><button class="btn-ghost" onclick="hidePlanEditor()">收起</button></div>
+        <input type="hidden" id="plan_id">
+        <div class="toolbar-row">
+          <label>会员名称 <input id="plan_name" placeholder="如：月度会员 / 永久会员" style="width:180px;"></label>
+          <label>方案 key <input id="plan_key" placeholder="如：monthly / forever" style="width:140px;" oninput="onKeyManualEdit()"></label>
+        </div>
+        <div class="toolbar-row">
+          <label>周期类型
+            <select id="plan_duration_type" onchange="toggleDurationValue()">
+              <option value="day">天</option>
+              <option value="month" selected>月</option>
+              <option value="year">年</option>
+              <option value="forever">永久</option>
+            </select>
+          </label>
+          <label>周期数值 <input id="plan_duration_value" type="number" min="1" value="1" style="width:70px;"></label>
+          <label>价格 <input id="plan_price" type="number" step="0.01" min="0" value="0" style="width:90px;"></label>
+          <label>币种 <input id="plan_currency" value="USD" style="width:70px;"></label>
+        </div>
+        <div class="form-group"><label>会员权益描述（每行一条）</label><textarea id="plan_benefits" rows="4" placeholder="解锁全部付费文章&#10;解锁全部付费课程&#10;免费获取虚拟商品"></textarea></div>
+        <div class="toolbar-row">
+          <label>排序(数字越小越靠前) <input id="plan_sort_order" type="number" value="0" style="width:80px;"></label>
+          <label style="display:flex;align-items:center;gap:4px;"><input type="checkbox" id="plan_status" checked> 启用</label>
+        </div>
+        <div class="toolbar-row">
+          <button class="btn-primary" onclick="savePlan()">保存</button>
+          <button class="btn-ghost" onclick="hidePlanEditor()">取消</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="view-menus" class="view" style="display:none;">
+      <div class="admin-header">
+        <h1>菜单管理</h1>
+        <div style="display:flex;gap:10px;">
+          <button class="btn-ghost" onclick="addMenu()">＋ 添加父级菜单</button>
+          <button class="btn-primary" onclick="saveMenus()">保存菜单</button>
+        </div>
+      </div>
+      <p style="color:var(--text-muted);font-size:.85rem;margin:0 0 12px;">自定义菜单会追加到导航栏固定菜单（首页 / 课程 / 文章 / 商城 / 关于我们 / 帮助中心）之后，支持父级 + 子级两级。打开方式选「新标签页」时以新窗口打开链接。点击「保存菜单」后生效，前端刷新即可看到。</p>
+      <div id="menuAdminList"></div>
+    </section>
+
+    <section id="view-settings" class="view" style="display:none;">
+      <div class="admin-header"><h1>系统设置</h1><button class="btn-primary" onclick="saveSettings()">保存设置</button></div>
+      <h3 style="color:var(--gold);margin:16px 0;">站点信息</h3>
+      <div class="form-group"><label>网站名称</label><input id="s_site_name"></div>
+      <div class="form-group"><label>标语 (tagline)</label><input id="s_site_tagline"></div>
+      <div class="form-group"><label>口号 (slogan)</label><input id="s_site_slogan"></div>
+      <div class="form-group"><label>标签页图标 (favicon)</label>
+        <div style="display:flex;gap:10px;"><input id="s_site_favicon" placeholder="/media/xxx.png 或留空" style="flex:1;"><button class="btn-ghost" onclick="uploadTo('s_site_favicon')">上传</button></div>
+      </div>
+      <div class="form-group"><label>导航栏 Logo</label>
+        <div style="display:flex;gap:10px;"><input id="s_site_logo" placeholder="/media/xxx.png 或留空" style="flex:1;"><button class="btn-ghost" onclick="uploadTo('s_site_logo')">上传</button></div>
+      </div>
+
+      <h3 style="color:var(--gold);margin:16px 0;">发件人 (Resend)</h3>
+      <div class="form-group"><label>发件邮箱（需在 Resend 验证的域名）</label><input id="s_sender_email"></div>
+      <div class="form-group"><label>发件名称</label><input id="s_sender_name"></div>
+      <div class="form-group"><label>Resend API Key（re_ 开头）</label><input id="s_resend_api_key" type="password" placeholder="re_xxxxxx"></div>
+
+      <h3 style="color:var(--gold);margin:16px 0;">易支付网关</h3>
+      <a class="epay-register" href="https://api.payone.uk" target="_blank" rel="noopener noreferrer">🚀 开通商户</a>
+      <div class="form-group"><label>接口协议地址 (API URL)</label><input id="s_epay_api_url" placeholder="https://api.example.com"></div>
+      <div class="form-group"><label>商户 ID (PID)</label><input id="s_epay_pid"></div>
+      <div class="form-group"><label>API 密钥 (Key)</label><input id="s_epay_key" type="password"></div>
+      <div class="form-group"><label>支持的支付方式</label>
+        <div class="pay-method-checks">
+          <label><input type="checkbox" id="pm_alipay"> 支付宝</label>
+          <label><input type="checkbox" id="pm_wxpay"> 微信</label>
+          <label><input type="checkbox" id="pm_usdt"> USDT</label>
+          <label><input type="checkbox" id="pm_stripe"> Stripe</label>
+        </div>
+      </div>
+
+      <h3 style="color:var(--gold);margin:16px 0;">共创计划 (返佣)</h3>
+      <div class="toolbar-row">
+        <label>返佣比例 (%) <input id="s_commission_rate" style="width:80px;"></label>
+      </div>
+
+      <h3 style="color:var(--gold);margin:16px 0;">页脚社交媒体</h3>
+      <p style="color:var(--text-muted);font-size:.8rem;margin:0 0 8px;">仅填写链接的平台会显示在前端页脚，留空则不显示。</p>
+      <div class="toolbar-row">
+        <label>Bilibili <input id="social_bilibili" placeholder="https://..."></label>
+        <label>抖音 <input id="social_douyin" placeholder="https://..."></label>
+        <label>小红书 <input id="social_xiaohongshu" placeholder="https://..."></label>
+      </div>
+      <div class="toolbar-row">
+        <label>Facebook <input id="social_facebook" placeholder="https://..."></label>
+        <label>X <input id="social_x" placeholder="https://..."></label>
+        <label>YouTube <input id="social_youtube" placeholder="https://..."></label>
+        <label>Instagram <input id="social_instagram" placeholder="https://..."></label>
+      </div>
+
+      <h3 style="color:var(--gold);margin:16px 0;">在线客服</h3>
+      <p style="color:var(--text-muted);font-size:.8rem;margin:0 0 8px;">留空的客服方式前端不显示；全部留空则不显示悬浮客服按钮。</p>
+      <div class="toolbar-row">
+        <label>在线客服链接 <input id="cs_chat_url" placeholder="聊天页面 URL"></label>
+        <label>微信二维码图 <input id="cs_wechat_qr" placeholder="二维码图片 URL"> <button type="button" class="btn-ghost" onclick="uploadWechatQr()">上传</button></label>
+        <input type="file" id="wechatQrInput" accept="image/*" style="display:none;">
+      </div>
+      <div class="toolbar-row">
+        <label>WhatsApp <a href="https://your-worker.workers.dev/helper" target="_blank" rel="noopener noreferrer" style="color:red;text-decoration:underline;">获取教程</a> <input id="cs_whatsapp" placeholder="https://wa.me/message/短链接id"></label>
+        <label>Telegram <input id="cs_telegram" placeholder="https://t.me/用户名"></label>
+      </div>
+
+      <h3 style="color:var(--gold);margin:16px 0;">AI 智能客服</h3>
+      <p style="color:var(--text-muted);font-size:.8rem;margin:0 0 8px;">OpenAI 兼容接口（如 DeepSeek、OpenAI、Kimi 等）。三项都填才启用 AI 客服。</p>
+      <div class="toolbar-row">
+        <label>Base URL <input id="ai_base_url" placeholder="https://api.deepseek.com/v1" style="width:260px;"></label>
+        <label>Model ID <input id="ai_model" placeholder="deepseek-chat" style="width:160px;"></label>
+      </div>
+      <div class="toolbar-row">
+        <label>API Key <input id="ai_api_key" type="password" placeholder="sk-..." style="width:300px;"></label>
+      </div>
+    </section>
+
+    <section id="view-users" class="view" style="display:none;">
+      <div class="admin-header"><h1>用户</h1><div class="admin-search"><input id="userSearch" placeholder="搜索邮箱 / 昵称 / ID..." oninput="filterUsers()"></div></div>
+      <div id="userList"></div>
+    </section>
+
+    <section id="view-orders" class="view" style="display:none;">
+      <div class="admin-header"><h1>订单</h1></div>
+      <div class="filter-bar">
+        <span class="filter-label">日期</span>
+        <input type="date" id="orderDateFrom" onchange="filterOrders()">
+        <span class="filter-sep">~</span>
+        <input type="date" id="orderDateTo" onchange="filterOrders()">
+        <select id="orderStatus" onchange="filterOrders()">
+          <option value="">全部状态</option>
+          <option value="pending">待支付</option>
+          <option value="paid">已支付</option>
+        </select>
+        <select id="orderMethod" onchange="filterOrders()">
+          <option value="">全部方式</option>
+          <option value="alipay">支付宝</option>
+          <option value="wxpay">微信</option>
+          <option value="usdt">USDT</option>
+          <option value="stripe">Stripe</option>
+        </select>
+        <button class="btn-ghost" onclick="resetOrderFilters()">重置</button>
+      </div>
+      <div id="orderList"></div>
+    </section>
+
+    <section id="view-invites" class="view" style="display:none;">
+      <div class="admin-header"><h1>邀请统计</h1></div>
+      <div id="inviteList"></div>
+    </section>
+
+    <section id="view-withdrawals" class="view" style="display:none;">
+      <div class="admin-header"><h1>提现管理</h1><button class="btn-ghost" onclick="loadWithdrawals()">刷新</button></div>
+      <div id="withdrawalList"></div>
+    </section>
+
+    <section id="view-comments" class="view" style="display:none;">
+      <div class="admin-header"><h1>评论管理</h1><button class="btn-ghost" onclick="loadComments()">刷新</button></div>
+      <div class="filter-bar">
+        <span class="filter-label">状态</span>
+        <select id="commentStatus" onchange="filterComments()">
+          <option value="pending">待处理</option>
+          <option value="approved">已批准</option>
+          <option value="rejected">已拒绝</option>
+          <option value="all">全部</option>
+        </select>
+        <input type="text" id="commentSearch" class="admin-search" placeholder="搜索评论内容/用户/目标..." oninput="filterComments()">
+      </div>
+      <div id="commentAdminList"></div>
+    </section>
+
+    <section id="view-courses" class="view" style="display:none;">
+      <div class="admin-header"><h1>课程管理</h1><div class="admin-search"><input id="courseSearch" placeholder="搜索课程标题 / ID..." oninput="filterCourses()"></div><button class="btn-primary" onclick="openCourseEditor()">＋ 发布课程</button></div>
+      <div id="courseList"></div>
+      <div id="courseEditor" style="display:none;">
+        <div class="toolbar-row">
+          <input id="c_title" placeholder="课程标题" style="flex:1;min-width:200px;">
+          <select id="c_access" onchange="toggleCoursePrice()"><option value="public">免费</option><option value="paid">付费</option></select>
+          <select id="c_status"><option value="1">公开</option><option value="0">隐藏</option></select>
+        </div>
+        <div class="toolbar-row">
+          <input id="c_price" placeholder="价格 $" type="number" step="0.01" min="0" style="width:130px;">
+          <label style="display:flex;align-items:center;gap:4px;font-size:.85rem;"><input type="checkbox" id="c_is_top"> 置顶</label>
+          <input id="c_order" placeholder="排序" type="number" style="width:90px;" value="0">
+        </div>
+        <div class="form-group"><label>封面图 URL</label>
+          <div style="display:flex;gap:10px;"><input id="c_cover" placeholder="/media/xxx.png 或留空" style="flex:1;"><button class="btn-ghost" onclick="uploadTo('c_cover')">上传</button></div>
+        </div>
+        <div class="form-group"><label>课程简介</label><textarea id="c_intro" style="min-height:80px;" placeholder="简要描述课程内容"></textarea></div>
+        <div class="toolbar-row" style="margin-top:16px;">
+          <button class="btn-primary" onclick="saveCourse()">保存课程</button>
+          <button class="btn-ghost" onclick="closeCourseEditor()">← 返回课程列表</button>
+          <span id="c_editId" style="color:var(--text-muted);font-size:.85rem;"></span>
+        </div>
+        <div id="courseChapterBox" style="display:none;margin-top:24px;">
+          <div class="admin-header"><h2>课程章节 / 视频</h2><button class="btn-primary" onclick="addChapter()">＋ 添加章节</button><button class="btn-ghost" onclick="saveChapters()">保存章节</button></div>
+          <div id="chapterList"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="view-products" class="view" style="display:none;">
+      <div class="admin-header"><h1>商品管理</h1><div class="admin-search"><input id="productSearch" placeholder="搜索商品名称 / ID..." oninput="filterProducts()"></div><button class="btn-primary" onclick="openProductEditor()">＋ 发布商品</button></div>
+      <div id="productList"></div>
+      <div id="productEditor" style="display:none;">
+        <div class="toolbar-row">
+          <input id="p_name" placeholder="商品名称" style="flex:1;min-width:200px;">
+          <select id="p_type" onchange="toggleProductType()"><option value="physical">实物商品</option><option value="virtual">虚拟商品</option></select>
+          <select id="p_status"><option value="1">上架</option><option value="0">下架</option></select>
+        </div>
+        <div class="toolbar-row">
+          <input id="p_price" placeholder="价格 $" type="number" step="0.01" min="0" style="width:110px;">
+          <input id="p_sale_price" placeholder="促销价$" type="number" step="0.01" min="0" style="width:110px;">
+          <input id="p_stock" placeholder="库存" type="number" min="0" style="width:90px;" value="0">
+          <select id="p_category"></select>
+        </div>
+        <div class="toolbar-row">
+          <label style="display:flex;align-items:center;gap:4px;font-size:.85rem;"><input type="checkbox" id="p_is_featured"> 精选</label>
+          <input id="p_sort_order" placeholder="排序(数字越小越靠前)" type="number" style="width:180px;" value="0">
+        </div>
+        <div class="form-group"><label>封面图</label>
+          <div style="display:flex;gap:10px;"><input id="p_cover" placeholder="/media/xxx.png 或留空" style="flex:1;"><button class="btn-ghost" onclick="uploadTo('p_cover')">上传</button></div>
+        </div>
+        <div class="form-group"><label>简短描述</label><textarea id="p_short_desc" placeholder="一句话介绍商品亮点..." style="min-height:60px;"></textarea></div>
+        <div class="form-group"><label>商品相册（多图）</label>
+          <div id="p_gallery_list" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;"></div>
+          <button class="btn-ghost" type="button" onclick="document.getElementById('galleryInput').click()">＋ 添加图片</button>
+          <input type="file" id="galleryInput" accept="image/*" multiple style="display:none;">
+        </div>
+        <div id="virtualFields" style="display:none;">
+          <div class="form-group"><label>下载文件（购买后下载）</label>
+            <div style="display:flex;gap:10px;align-items:center;">
+              <input id="p_file_url" placeholder="上传后自动填充" style="flex:1;" readonly>
+              <button class="btn-ghost" onclick="document.getElementById('productFileInput').click()">上传文件</button>
+            </div>
+            <div id="p_file_name" style="color:var(--text-muted);font-size:.8rem;margin-top:4px;"></div>
+          </div>
+          <div class="form-group"><label>隐藏内容（购买后可见）</label><textarea id="p_hidden" style="min-height:100px;" placeholder="购买后可见的内容，如兑换码、下载说明、教程等"></textarea></div>
+        </div>
+        <div class="form-group"><label>商品详情</label>
+          <div class="editor-toolbar">
+            <button onmousedown="_saveSel()" onclick="gExec('p_editor','bold')"><b>B</b></button>
+            <button onmousedown="_saveSel()" onclick="gExec('p_editor','italic')"><i>I</i></button>
+            <button onmousedown="_saveSel()" onclick="gExec('p_editor','underline')"><u>U</u></button>
+            <button onmousedown="_saveSel()" onclick="gExec('p_editor','strikeThrough')"><s>S</s></button>
+            <select onmousedown="_saveSel()" onchange="gExec('p_editor','formatBlock', this.value); this.value='';">
+              <option value="">格式</option><option value="<h1>">H1</option><option value="<h2>">H2</option>
+              <option value="<h3>">H3</option><option value="<p>">正文</option><option value="<blockquote>">引用</option>
+              <option value="<pre>">代码块</option>
+            </select>
+            <button onmousedown="_saveSel()" onclick="gExec('p_editor','insertUnorderedList')">• 列表</button>
+            <button onmousedown="_saveSel()" onclick="gExec('p_editor','insertOrderedList')">1. 列表</button>
+            <button onmousedown="_saveSel()" onclick="gExec('p_editor','removeFormat')">清除格式</button>
+            <button onmousedown="_saveSel()" onclick="gLink('p_editor')">🔗 链接</button>
+            <button onmousedown="_saveSel()" onclick="gUpload('p_editor','productImgInput')">🖼 上传图片</button>
+            <button onmousedown="_saveSel()" onclick="gYouTube('p_editor')">▶ YouTube</button>
+            <button onmousedown="_saveSel()" onclick="gBilibili('p_editor')">📺 Bilibili</button>
+            <button onmousedown="_saveSel()" onclick="gDirectVideo('p_editor')">🎬 视频直链</button>
+            <button onmousedown="_saveSel()" onclick="gUpload('p_editor','productAudioInput')">🎵 上传音频</button>
+            <button onmousedown="_saveSel()" onclick="gTable('p_editor')">⊞ 表格</button>
+            <button onmousedown="_saveSel()" onclick="gColumns('p_editor')">▦ 分栏</button>
+            <label class="color-btn" onmousedown="_saveSel()">颜色 <input type="color" value="#e6edf3" onchange="gColor('p_editor', this.value)"></label>
+            <label class="color-btn" onmousedown="_saveSel()">背景 <input type="color" value="#ffff00" onchange="gHilite('p_editor', this.value)"></label>
+          </div>
+          <div class="editor-area" id="p_editor" contenteditable="true" style="min-height:120px;"></div>
+          <input type="file" id="productImgInput" accept="image/*" style="display:none;">
+          <input type="file" id="productAudioInput" accept="audio/*" style="display:none;">
+        </div>
+        <div class="toolbar-row" style="margin-top:16px;">
+          <button class="btn-primary" onclick="saveProduct()">保存商品</button>
+          <button class="btn-ghost" onclick="closeProductEditor()">取消</button>
+          <span id="p_editId" style="color:var(--text-muted);font-size:.85rem;"></span>
+        </div>
+      </div>
+      <input type="file" id="productFileInput" style="display:none;">
+    </section>
+
+    <section id="view-product-orders" class="view" style="display:none;">
+      <div class="admin-header"><h1>商品订单</h1><button class="btn-ghost" onclick="loadProductOrders()">刷新</button></div>
+      <div class="filter-bar">
+        <span class="filter-label">日期</span>
+        <input type="date" id="poDateFrom" onchange="filterProductOrders()">
+        <span class="filter-sep">~</span>
+        <input type="date" id="poDateTo" onchange="filterProductOrders()">
+        <select id="poStatus" onchange="filterProductOrders()">
+          <option value="">全部状态</option>
+          <option value="pending">待支付</option>
+          <option value="paid">已支付</option>
+          <option value="shipped">已发货</option>
+          <option value="completed">已完成</option>
+          <option value="cancelled">已取消</option>
+        </select>
+        <select id="poType" onchange="filterProductOrders()">
+          <option value="">全部类型</option>
+          <option value="physical">实物</option>
+          <option value="virtual">虚拟</option>
+        </select>
+        <select id="poMethod" onchange="filterProductOrders()">
+          <option value="">全部方式</option>
+          <option value="alipay">支付宝</option>
+          <option value="wxpay">微信</option>
+          <option value="usdt">USDT</option>
+          <option value="stripe">Stripe</option>
+        </select>
+        <button class="btn-ghost" onclick="resetProductOrderFilters()">重置</button>
+      </div>
+      <div class="pending-section" id="pendingSection" style="display:none;">
+        <div class="pending-title">🚚 待处理发货 <span class="badge-count" id="pendingCount">0</span></div>
+        <div id="pendingShipList"></div>
+      </div>
+      <div id="productOrderList"></div>
+    </section>
+
+    <div class="modal" id="poModal" style="display:none;">
+      <div class="modal-box">
+        <div class="modal-head"><span id="poModalTitle">订单</span><button class="modal-close" onclick="closePoModal()">×</button></div>
+        <div class="modal-body" id="poModalBody"></div>
+      </div>
+    </div>
+
+  </main>
+</div>
+<div id="toast" class="toast" style="display:none;"></div>
+<input type="file" id="logoFileInput" accept="image/*" style="display:none;">
+
+<script>
+let ME = null;
+const $ = (id) => document.getElementById(id);
+let editingId = null;
+let currentCourseId = null;
+let currentType = 'article';
+
+async function api(path, opts = {}) {
+  const r = await fetch(path, { credentials: 'same-origin', ...opts });
+  if (r.status === 401) { showLogin(); throw new Error('unauthorized'); }
+  return r;
+}
+
+function showLogin() { $('loginGate').style.display = 'block'; $('adminShell').style.display = 'none'; }
+function showAdmin() { $('loginGate').style.display = 'none'; $('adminShell').style.display = 'flex'; }
+
+async function adminLogin() {
+  const r = await fetch('/api/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: $('a_email').value.trim(), password: $('a_password').value }) });
+  const d = await r.json();
+  if (!r.ok || d.user?.role !== 'admin') { $('a_err').textContent = d.error || '非管理员账号'; return; }
+  ME = d.user;
+  showAdmin(); showView('dashboard'); loadStats();
+}
+
+function toast(msg) {
+  const t = $('toast'); t.textContent = msg; t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 2200);
+}
+
+function showView(name) {
+  const sb = $('adminSidebar'); if (sb) sb.classList.remove('open');
+  document.querySelectorAll('.view').forEach(v => v.style.display = 'none');
+  document.querySelectorAll('.admin-sidebar a[data-view]').forEach(a => a.classList.toggle('active', a.dataset.view === name));
+  $('view-' + name).style.display = 'block';
+  if (name === 'dashboard') loadStats();
+  if (name === 'articles') loadArticles();
+  if (name === 'courses') loadCourses();
+  if (name === 'products') loadProducts();
+  if (name === 'product-orders') loadProductOrders();
+  if (name === 'categories') loadCategories();
+  if (name === 'about') loadAbout();
+  if (name === 'settings') loadSettings();
+  if (name === 'users') loadUsers();
+  if (name === 'orders') loadOrders();
+  if (name === 'invites') loadInvites();
+  if (name === 'withdrawals') loadWithdrawals();
+  if (name === 'comments') loadComments();
+  if (name === 'media') loadMedia(1);
+  if (name === 'ads') loadAds();
+  if (name === 'menus') loadMenus();
+  if (name === 'membership') loadMembership();
+}
+
+// ---- Dashboard ----
+async function loadStats() {
+  const r = await api('/api/admin/stats'); const d = await r.json();
+  const items = [
+    ['文章', d.articles], ['分类', d.categories], ['用户', d.users],
+    ['订单总数', d.orders], ['已支付', d.paid_orders], ['营收 USD', d.revenue],
+    ['提现待处理', d.pending_withdrawals], ['待发货订单', d.pending_shipments], ['待处理评论', d.pending_comments]
+  ];
+  $('statGrid').innerHTML = items.map(([l, n]) => {
+    const alert = (l === '提现待处理' || l === '待发货订单' || l === '待处理评论') && n > 0;
+    return `<div class="stat-card${alert ? ' stat-alert' : ''}"><div class="num">${n}</div><div class="label">${l}</div></div>`;
+  }).join('');
+  // 待办播报
+  const pw = d.pending_withdrawals || 0;
+  const ps = d.pending_shipments || 0;
+  const pc = d.pending_comments || 0;
+  const banner = $('pendingBanner');
+  if (pw > 0 || ps > 0 || pc > 0) {
+    const parts = [];
+    if (pw > 0) parts.push(`<a onclick="showView('withdrawals');return false;">${pw} 笔提现待处理</a>`);
+    if (ps > 0) parts.push(`<a onclick="showView('product-orders');return false;">${ps} 个商品订单待发货</a>`);
+    if (pc > 0) parts.push(`<a onclick="showView('comments');return false;">${pc} 条评论待处理</a>`);
+    banner.innerHTML = `<span>🔔</span> 待办提醒：${parts.join(' <span>·</span> ')}`;
+    banner.style.display = 'flex';
+  } else {
+    banner.style.display = 'none';
+  }
+}
+
+// ---- Comments ----
+let _comments = [];
+async function loadComments() {
+  const r = await api('/api/admin/comments'); const d = await r.json();
+  _comments = d.comments || [];
+  _page.comment = 1;
+  renderComments();
+}
+function renderComments() {
+  const status = $('commentStatus').value || 'pending';
+  const q = ($('commentSearch').value || '').trim().toLowerCase();
+  let list = _comments;
+  if (status !== 'all') list = list.filter(c => c.status === status);
+  if (q) list = list.filter(c => (c.content || '').toLowerCase().includes(q) || (c.user_name || '').toLowerCase().includes(q) || (c.product_name || '').toLowerCase().includes(q) || (c.article_title || '').toLowerCase().includes(q));
+  const total = list.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  if (_page.comment > totalPages) _page.comment = totalPages;
+  const start = (_page.comment - 1) * PAGE_SIZE;
+  const pageItems = list.slice(start, start + PAGE_SIZE);
+  $('commentAdminList').innerHTML = (pageItems.length
+    ? `<table class="table"><thead><tr><th>ID</th><th>目标</th><th>用户</th><th>评分</th><th>内容</th><th>状态</th><th>时间</th><th>操作</th></tr></thead><tbody>` +
+      pageItems.map(cm => {
+        const stars = cm.article_title ? '—' : '★'.repeat(cm.rating || 0) + '☆'.repeat(5 - (cm.rating || 0));
+        const statusBadge = cm.status === 'pending' ? '<span class="badge" style="background:rgba(232,185,35,.15);color:var(--gold);">待处理</span>' : cm.status === 'approved' ? '<span class="badge badge-public">已批准</span>' : '<span class="badge badge-draft">已拒绝</span>';
+        const reply = cm.reply ? `<div style="font-size:.8rem;color:var(--teal);">回复：${esc(cm.reply)}</div>` : '';
+        const actions = [];
+        if (cm.status !== 'approved') actions.push(`<a href="#" onclick="commentAction(${cm.id},'approve');return false;">批准</a>`);
+        if (cm.status !== 'rejected') actions.push(`<a href="#" style="color:var(--gold);" onclick="commentAction(${cm.id},'reject');return false;">拒绝</a>`);
+        actions.push(`<a href="#" onclick="commentReply(${cm.id});return false;">批注</a>`);
+        actions.push(`<a href="#" style="color:var(--danger);" onclick="delComment(${cm.id});return false;">删除</a>`);
+        const target = cm.article_title ? `📄 ${esc(cm.article_title)}` : `🛍 ${esc(cm.product_name || ('#' + cm.product_id))}`;
+        return `<tr>
+          <td>${cm.id}</td><td>${target}</td><td>${esc(cm.user_name || cm.user_email || '-')}</td>
+          <td>${stars}</td><td>${esc(cm.content)}${reply}</td><td>${statusBadge}</td><td>${(cm.created_at || '').slice(0, 16)}</td>
+          <td>${actions.join(' · ')}</td>
+        </tr>`;
+      }).join('') + '</tbody></table>'
+    : '<p class="empty">暂无评论</p>') + pagerHtml('comment', _page.comment, total);
+}
+function filterComments() {
+  _page.comment = 1;
+  renderComments();
+}
+async function commentAction(id, action) {
+  await api('/api/admin/comments/' + id, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action }) });
+  loadComments();
+}
+function commentReply(id) {
+  const reply = prompt('输入批注/回复内容：');
+  if (reply === null) return;
+  api('/api/admin/comments/' + id, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'reply', reply }) }).then(() => loadComments());
+}
+async function delComment(id) {
+  if (!confirm('确认删除评论 #' + id + '？')) return;
+  await api('/api/admin/comments/' + id, { method: 'DELETE' });
+  loadComments();
+}
+
+// ---- Menu Management (nav_menu) ----
+let _menus = [];
+async function loadMenus() {
+  const r = await api('/api/admin/settings'); const d = await r.json();
+  try { _menus = JSON.parse(d.settings.nav_menu || '[]'); } catch (e) { _menus = []; }
+  renderMenus();
+}
+function targetOptions(t) {
+  return `<option value="_self"${t !== '_blank' ? ' selected' : ''}>本页面</option><option value="_blank"${t === '_blank' ? ' selected' : ''}>新标签页</option>`;
+}
+function renderMenus() {
+  const box = $('menuAdminList');
+  if (!_menus.length) { box.innerHTML = '<p class="empty">暂无自定义菜单。点击「＋ 添加父级菜单」创建，保存后显示在导航栏固定菜单之后。</p>'; return; }
+  box.innerHTML = _menus.map((m, i) => {
+    const kids = (m.children || []).map((ch, ci) => `
+      <div class="menu-child-row">
+        <input class="mn-label" value="${esc(ch.label || '')}" placeholder="子菜单名称">
+        <input class="mn-url" value="${esc(ch.url || '')}" placeholder="链接 /xxx 或 https://...">
+        <select class="mn-target">${targetOptions(ch.target)}</select>
+        <span class="mn-ops">
+          <button type="button" class="btn-ghost" onclick="moveChild(${i},${ci},-1)" ${ci === 0 ? 'disabled' : ''}>↑</button>
+          <button type="button" class="btn-ghost" onclick="moveChild(${i},${ci},1)" ${ci === (m.children || []).length - 1 ? 'disabled' : ''}>↓</button>
+          <button type="button" class="btn-danger-mini" onclick="delChild(${i},${ci})">✕</button>
+        </span>
+      </div>`).join('');
+    return `<div class="menu-item-card">
+      <div class="menu-item-head">
+        <span class="menu-index">#${i + 1}</span>
+        <input class="mn-label" value="${esc(m.label || '')}" placeholder="菜单名称（必填）">
+        <input class="mn-url" value="${esc(m.url || '')}" placeholder="链接 /xxx 或 https://...">
+        <select class="mn-target">${targetOptions(m.target)}</select>
+        <span class="mn-ops">
+          <button type="button" class="btn-ghost" onclick="moveMenu(${i},-1)" ${i === 0 ? 'disabled' : ''}>↑</button>
+          <button type="button" class="btn-ghost" onclick="moveMenu(${i},1)" ${i === _menus.length - 1 ? 'disabled' : ''}>↓</button>
+          <button type="button" class="btn-danger-mini" onclick="delMenu(${i})">删除</button>
+        </span>
+      </div>
+      <div class="menu-children">
+        ${kids || '<p class="empty" style="font-size:.8rem;padding:4px 0;">暂无子菜单</p>'}
+        <button type="button" class="btn-ghost" onclick="addChild(${i})">＋ 添加子菜单</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+function readMenusFromDom() {
+  const out = [];
+  document.querySelectorAll('#menuAdminList .menu-item-card').forEach((card, i) => {
+    const head = card.querySelector('.menu-item-head');
+    const children = [];
+    card.querySelectorAll('.menu-child-row').forEach((row, ci) => {
+      children.push({
+        id: 'c' + i + '_' + ci,
+        label: row.querySelector('.mn-label').value.trim(),
+        url: row.querySelector('.mn-url').value.trim(),
+        target: row.querySelector('.mn-target').value,
+      });
+    });
+    out.push({
+      id: 'm' + i,
+      label: head.querySelector('.mn-label').value.trim(),
+      url: head.querySelector('.mn-url').value.trim(),
+      target: head.querySelector('.mn-target').value,
+      children,
+    });
+  });
+  return out;
+}
+function moveMenu(i, dir) {
+  _menus = readMenusFromDom();
+  const j = i + dir; if (j < 0 || j >= _menus.length) return;
+  const t = _menus[i]; _menus[i] = _menus[j]; _menus[j] = t; renderMenus();
+}
+function delMenu(i) {
+  _menus = readMenusFromDom();
+  if (!confirm('确认删除该菜单及其子菜单？')) return; _menus.splice(i, 1); renderMenus();
+}
+function addMenu() { _menus = readMenusFromDom(); _menus.push({ id: 'm' + Date.now(), label: '', url: '', target: '_self', children: [] }); renderMenus(); }
+function moveChild(pi, ci, dir) {
+  _menus = readMenusFromDom();
+  const kids = _menus[pi].children || []; const cj = ci + dir;
+  if (cj < 0 || cj >= kids.length) return;
+  const t = kids[ci]; kids[ci] = kids[cj]; kids[cj] = t; renderMenus();
+}
+function delChild(pi, ci) { _menus = readMenusFromDom(); if (!_menus[pi].children) return; _menus[pi].children.splice(ci, 1); renderMenus(); }
+function addChild(pi) {
+  _menus = readMenusFromDom();
+  if (!_menus[pi].children) _menus[pi].children = [];
+  _menus[pi].children.push({ id: 'c' + Date.now(), label: '', url: '', target: '_self' });
+  renderMenus();
+}
+function collectMenus() {
+  return readMenusFromDom()
+    .filter((m) => m.label)
+    .map((m) => ({ ...m, children: m.children.filter((ch) => ch.label) }));
+}
+async function saveMenus() {
+  const nav_menu = JSON.stringify(collectMenus());
+  const r = await api('/api/admin/settings', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ nav_menu }) });
+  const d = await r.json();
+  if (d.error) { toast('保存失败：' + d.error); return; }
+  toast('菜单已保存 ✓');
+}
+
+// ---- Media Library ----
+let _mediaPage = 1;
+function escJs(s) { return String(s ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
+function fmtSize(b) {
+  b = Number(b) || 0;
+  if (b < 1024) return b + ' B';
+  if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB';
+  if (b < 1024 * 1024 * 1024) return (b / 1024 / 1024).toFixed(1) + ' MB';
+  return (b / 1024 / 1024 / 1024).toFixed(2) + ' GB';
+}
+function mediaKind(ext) {
+  const e = (ext || '').toLowerCase();
+  if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'ico', 'bmp'].includes(e)) return 'image';
+  if (['mp4', 'webm', 'mov', 'avi', 'mkv', 'm4v'].includes(e)) return 'video';
+  if (['mp3', 'wav', 'flac', 'aac', 'm4a', 'ogg'].includes(e)) return 'audio';
+  if (['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'md', 'csv', 'json'].includes(e)) return 'document';
+  if (['zip', 'rar', '7z', 'tar', 'gz', 'bz2'].includes(e)) return 'archive';
+  return 'other';
+}
+function mediaIcon(kind, ext) {
+  const e = (ext || '').toLowerCase();
+  if (kind === 'audio') return '🎵';
+  if (kind === 'archive') return '📦';
+  if (kind === 'document') {
+    if (e === 'pdf') return '📕';
+    if (['doc', 'docx'].includes(e)) return '📝';
+    if (['xls', 'xlsx', 'csv'].includes(e)) return '📊';
+    if (['ppt', 'pptx'].includes(e)) return '📽';
+    return '📄';
+  }
+  return '📎';
+}
+function mediaCard(m) {
+  const kind = mediaKind(m.ext);
+  const url = m.url || ('/media/' + m.key);
+  const k = escJs(m.key);
+  let thumb;
+  if (kind === 'image') thumb = `<img src="${esc(url)}" alt="${esc(m.filename)}" loading="lazy">`;
+  else if (kind === 'video') thumb = `<video src="${esc(url)}" preload="metadata" muted playsinline></video>`;
+  else thumb = `<div class="media-icon">${mediaIcon(kind, m.ext)}</div>`;
+  return `<div class="media-card">
+    <div class="media-thumb">${thumb}
+      <div class="media-actions">
+        <button title="复制链接" onclick="copyMediaLink('${k}')">🔗 复制</button>
+        <button title="查看" onclick="window.open('${esc(url)}','_blank')">👁 查看</button>
+        <button class="act-del" title="删除" onclick="delMedia('${k}')">🗑 删除</button>
+      </div>
+    </div>
+    <div class="media-info">
+      <span class="media-name" title="${esc(m.filename)}">${esc(m.filename)}</span>
+      <div class="media-meta">${fmtSize(m.size)} · ${(m.created_at || '').slice(0, 16)}</div>
+    </div>
+  </div>`;
+}
+function mediaPagerHtml(page, totalPages, total) {
+  if (totalPages <= 1) return `<div class="pagination"><span class="page-info">共 ${total} 个文件</span></div>`;
+  let nums = '';
+  const start = Math.max(1, page - 2);
+  const end = Math.min(totalPages, page + 2);
+  if (start > 1) nums += `<span class="page-num" onclick="loadMedia(1)">1</span>` + (start > 2 ? '<span class="page-info">…</span>' : '');
+  for (let i = start; i <= end; i++) nums += `<span class="page-num${i === page ? ' active' : ''}" onclick="loadMedia(${i})">${i}</span>`;
+  if (end < totalPages) nums += (end < totalPages - 1 ? '<span class="page-info">…</span>' : '') + `<span class="page-num" onclick="loadMedia(${totalPages})">${totalPages}</span>`;
+  return `<div class="pagination">
+    <button ${page <= 1 ? 'disabled' : ''} onclick="loadMedia(${page - 1})">上一页</button>
+    ${nums}
+    <button ${page >= totalPages ? 'disabled' : ''} onclick="loadMedia(${page + 1})">下一页</button>
+    <span class="page-info">共 ${total} 个文件</span>
+  </div>`;
+}
+function renderMedia(d) {
+  const items = d.items || [];
+  $('mediaGrid').innerHTML = items.length
+    ? items.map(mediaCard).join('')
+    : '<p class="empty">暂无文件，点击右上角「＋ 上传文件」上传</p>';
+  $('mediaPager').innerHTML = mediaPagerHtml(d.page || 1, d.total_pages || 1, d.total || 0);
+}
+async function loadMedia(page) {
+  _mediaPage = page || 1;
+  const type = $('mediaType').value || 'all';
+  const q = ($('mediaSearch').value || '').trim();
+  const params = new URLSearchParams({ type, page: String(_mediaPage), page_size: '24' });
+  if (q) params.set('q', q);
+  const r = await api('/api/admin/media?' + params.toString());
+  const d = await r.json();
+  renderMedia(d);
+}
+function searchMedia() { loadMedia(1); }
+async function copyMediaLink(key) {
+  const url = location.origin + '/media/' + key;
+  try {
+    await navigator.clipboard.writeText(url);
+    toast('链接已复制');
+  } catch (e) {
+    const ta = document.createElement('textarea');
+    ta.value = url; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); toast('链接已复制'); } catch (e2) { toast('复制失败，请手动复制：' + url); }
+    document.body.removeChild(ta);
+  }
+}
+async function delMedia(key) {
+  if (!confirm('确认删除该文件？删除后不可恢复。')) return;
+  const r = await api('/api/admin/media', { method: 'DELETE', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ key }) });
+  const d = await r.json();
+  if (d.error) toast(d.error); else { toast('已删除'); loadMedia(_mediaPage); }
+}
+$('mediaFileInput').addEventListener('change', async (e) => {
+  const files = e.target.files;
+  if (!files || !files.length) return;
+  let ok = 0;
+  for (const file of files) {
+    const fd = new FormData(); fd.append('file', file);
+    const r = await api('/api/admin/upload', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (d.url) ok++; else toast(d.error || '上传失败');
+  }
+  e.target.value = '';
+  if (ok > 0) { toast('已上传 ' + ok + ' 个文件'); loadMedia(1); }
+});
+
+// ---- Articles ----
+const TYPE_LABELS = { article: '文章', course: '课程', product: '商品' };
+const PAGE_SIZE = 15;
+let _page = { article: 1, course: 1, product: 1, comment: 1 };
+function pagerHtml(name, page, total) {
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  if (totalPages <= 1) return '';
+  let nums = '';
+  const start = Math.max(1, page - 2);
+  const end = Math.min(totalPages, page + 2);
+  if (start > 1) nums += `<span class="page-num" onclick="goPage('${name}',1)">1</span>` + (start > 2 ? '<span class="page-info">…</span>' : '');
+  for (let i = start; i <= end; i++) nums += `<span class="page-num${i === page ? ' active' : ''}" onclick="goPage('${name}',${i})">${i}</span>`;
+  if (end < totalPages) nums += (end < totalPages - 1 ? '<span class="page-info">…</span>' : '') + `<span class="page-num" onclick="goPage('${name}',${totalPages})">${totalPages}</span>`;
+  return `<div class="pagination">
+    <button ${page <= 1 ? 'disabled' : ''} onclick="goPage('${name}',${page - 1})">上一页</button>
+    ${nums}
+    <button ${page >= totalPages ? 'disabled' : ''} onclick="goPage('${name}',${page + 1})">下一页</button>
+    <span class="page-info">共 ${total} 条</span>
+  </div>`;
+}
+function goPage(name, p) {
+  _page[name] = p;
+  if (name === 'article') renderArticles();
+  else if (name === 'course') renderCourses();
+  else if (name === 'product') renderProducts();
+  else if (name === 'comment') renderComments();
+}
+let _articles = [];
+async function loadArticles() {
+  const r = await api('/api/admin/articles?type=article'); const d = await r.json();
+  const cats = await (await api('/api/admin/categories?type=article')).json();
+  const catMap = {}; cats.categories.forEach(c => catMap[c.id] = c.name);
+  _articles = d.articles.map(a => Object.assign({}, a, { _cat: a.category_name || catMap[a.category_id] || '-' }));
+  _page.article = 1;
+  renderArticles();
+}
+function renderArticles() {
+  const q = ($('articleSearch').value || '').trim().toLowerCase();
+  const list = q ? _articles.filter(a => (a.title || '').toLowerCase().includes(q) || String(a.id).includes(q)) : _articles;
+  const total = list.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  if (_page.article > totalPages) _page.article = totalPages;
+  const start = (_page.article - 1) * PAGE_SIZE;
+  const pageItems = list.slice(start, start + PAGE_SIZE);
+  $('articleList').innerHTML = `<table class="table"><thead><tr><th>ID</th><th>标题</th><th>分类</th><th>置顶</th><th>权限</th><th>状态</th><th>操作</th></tr></thead><tbody>` +
+    pageItems.map(a => `<tr>
+      <td>${a.id}</td><td>${esc(a.title)}</td><td>${esc(a._cat)}</td>
+      <td>${a.is_top ? '📌' : '-'}</td>
+      <td><span class="badge ${a.access_type === 'public' ? 'badge-public' : 'badge-paid'}">${a.access_type}</span></td>
+      <td><span class="badge ${a.status === 'published' ? 'badge-public' : 'badge-draft'}">${a.status}</span></td>
+      <td><a href="/article/${a.id}" target="_blank">查看</a> · <a href="#" onclick="editArticle(${a.id});return false;">编辑</a> · <a href="#" style="color:var(--danger);" onclick="delArticle(${a.id});return false;">删除</a></td>
+    </tr>`).join('') + '</tbody></table>' + pagerHtml('article', _page.article, total);
+}
+function filterArticles() {
+  _page.article = 1;
+  renderArticles();
+}
+
+function openEditor() {
+  editingId = null;
+  $('e_editId').textContent = '新建文章';
+  $('e_title').value = ''; $('e_slug').value = ''; $('e_excerpt').value = ''; $('e_cover').value = '';
+  showCoverPreview('');
+  $('e_price').value = '';
+  $('e_is_top').checked = false; $('e_sort_order').value = '0';
+  $('e_access').value = 'public'; $('e_status').value = 'draft';
+  $('editor').innerHTML = '';
+  $('articleList').style.display = 'none';
+  $('articleEditor').style.display = 'block';
+  loadCategoryOptions();
+  toggleArticlePrice();
+  _links = { article: [], course: [], product: [] };
+  ['article', 'course', 'product'].forEach(t => renderSelected(t));
+}
+
+function toggleArticlePrice() {
+  $('e_price').style.display = $('e_access').value === 'paid' ? '' : 'none';
+}
+
+async function editArticle(id) {
+  const r = await api('/api/admin/articles/' + id); const d = await r.json();
+  const a = d.article;
+  editingId = id;
+  $('e_editId').textContent = '编辑文章 #' + id;
+  $('e_title').value = a.title; $('e_slug').value = a.slug || ''; $('e_excerpt').value = a.excerpt || '';
+  $('e_price').value = a.price || '';
+  $('e_is_top').checked = !!a.is_top; $('e_sort_order').value = a.sort_order || 0;
+  $('e_access').value = a.access_type; $('e_status').value = a.status;
+  $('e_cover').value = a.cover_image || ''; showCoverPreview(a.cover_image || '');
+  $('editor').innerHTML = a.content || '';
+  ensureAudioDelBtns($('editor'));
+  $('articleList').style.display = 'none';
+  $('articleEditor').style.display = 'block';
+  loadCategoryOptions(a.category_id);
+  toggleArticlePrice();
+  loadLinks(id);
+}
+
+async function loadCategoryOptions(selected) {
+  const r = await api('/api/admin/categories?type=article'); const d = await r.json();
+  $('e_category').innerHTML = '<option value="">无分类</option>' + d.categories.map(c => `<option value="${c.id}" ${selected == c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
+}
+
+function closeEditor() {
+  $('articleEditor').style.display = 'none';
+  $('articleList').style.display = 'block';
+  loadArticles();
+}
+
+// ---- 关联内容（相关文章/课程/商品）----
+let _links = { article: [], course: [], product: [] };
+let _linkResults = { article: [], course: [], product: [] };
+let _linkTimer = {};
+function searchLink(type) {
+  const q = ($('linkSearch_' + type).value || '').trim();
+  const box = $('linkResults_' + type);
+  if (!q) { box.innerHTML = ''; return; }
+  clearTimeout(_linkTimer[type]);
+  _linkTimer[type] = setTimeout(async () => {
+    const r = await api('/api/admin/search-items?q=' + encodeURIComponent(q) + '&type=' + type);
+    const d = await r.json();
+    const items = d.items || [];
+    _linkResults[type] = items;
+    box.innerHTML = items.length
+      ? items.map((it, i) => `<div class="link-result-item" onclick="addLink('${type}', ${i})">${esc(it.title)}</div>`).join('')
+      : '<div class="link-empty">无匹配结果</div>';
+  }, 250);
+}
+function addLink(type, idx) {
+  const it = _linkResults[type][idx];
+  if (!it) return;
+  if (_links[type].some(x => x.id === it.id)) { toast('已添加'); return; }
+  _links[type].push({ id: it.id, title: it.title });
+  $('linkSearch_' + type).value = '';
+  $('linkResults_' + type).innerHTML = '';
+  renderSelected(type);
+}
+function renderSelected(type) {
+  const box = $('linkSelected_' + type);
+  const list = _links[type];
+  box.innerHTML = list.length
+    ? list.map((x, i) => `<div class="link-chip">
+        <span class="link-chip-title">${esc(x.title)}</span>
+        <button class="link-chip-btn" onclick="moveLink('${type}', ${i}, -1)" ${i === 0 ? 'disabled' : ''} title="上移">↑</button>
+        <button class="link-chip-btn" onclick="moveLink('${type}', ${i}, 1)" ${i === list.length - 1 ? 'disabled' : ''} title="下移">↓</button>
+        <button class="link-chip-btn link-chip-del" onclick="removeLink('${type}', ${i})" title="删除">✕</button>
+      </div>`).join('')
+    : '<div class="link-empty">未选择</div>';
+}
+function moveLink(type, idx, dir) {
+  const list = _links[type];
+  const j = idx + dir;
+  if (j < 0 || j >= list.length) return;
+  [list[idx], list[j]] = [list[j], list[idx]];
+  renderSelected(type);
+}
+function removeLink(type, idx) {
+  _links[type].splice(idx, 1);
+  renderSelected(type);
+}
+async function loadLinks(articleId) {
+  _links = { article: [], course: [], product: [] };
+  const r = await api('/api/admin/articles/' + articleId + '/links');
+  const d = await r.json();
+  const links = d.links || {};
+  ['article', 'course', 'product'].forEach(t => {
+    _links[t] = (links[t] || []).map(x => ({ id: x.item_id, title: x.title }));
+    renderSelected(t);
+  });
+}
+async function saveLinks(articleId) {
+  const links = [];
+  ['article', 'course', 'product'].forEach(t => {
+    _links[t].forEach((x, i) => links.push({ item_type: t, item_id: x.id, sort_order: i }));
+  });
+  await api('/api/admin/articles/' + articleId + '/links', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ links }) });
+}
+
+// ---- 广告管理 ----
+let _adEditId = null;
+async function loadAds() {
+  const r = await api('/api/admin/ads'); const d = await r.json();
+  const ads = d.ads || [];
+  $('adList').innerHTML = ads.length
+    ? `<table class="table"><thead><tr><th>ID</th><th>封面</th><th>标题</th><th>链接</th><th>状态</th><th>排序</th><th>操作</th></tr></thead><tbody>` +
+      ads.map(a => `<tr>
+        <td>${a.id}</td>
+        <td>${a.image ? `<img src="${esc(a.image)}" style="width:64px;height:36px;object-fit:cover;border-radius:4px;">` : '-'}</td>
+        <td>${esc(a.title)}</td>
+        <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(a.url)}</td>
+        <td>${a.status === 0 ? '<span class="badge badge-draft">停用</span>' : '<span class="badge badge-public">启用</span>'}</td>
+        <td>${a.sort_order}</td>
+        <td><a href="#" onclick="openAdEditor(${a.id});return false;">编辑</a> · <a href="#" style="color:var(--danger);" onclick="delAd(${a.id});return false;">删除</a></td>
+      </tr>`).join('') + '</tbody></table>'
+    : '<p class="empty">暂无广告，点击右上角「＋ 添加广告」</p>';
+}
+function openAdEditor(id) {
+  _adEditId = id || null;
+  $('adEditor').style.display = 'block';
+  $('ad_editId').textContent = id ? '编辑广告 #' + id : '新建广告';
+  if (id) {
+    api('/api/admin/ads').then(r => r.json()).then(d => {
+      const a = (d.ads || []).find(x => x.id === id);
+      if (a) {
+        $('ad_title').value = a.title || '';
+        $('ad_image').value = a.image || '';
+        $('ad_url').value = a.url || '';
+        $('ad_status').checked = a.status !== 0;
+        $('ad_order').value = a.sort_order || 0;
+      }
+    });
+  } else {
+    $('ad_title').value = ''; $('ad_image').value = ''; $('ad_url').value = '';
+    $('ad_status').checked = true; $('ad_order').value = 0;
+  }
+}
+function closeAdEditor() { $('adEditor').style.display = 'none'; }
+async function saveAd() {
+  const body = {
+    title: $('ad_title').value.trim(),
+    image: $('ad_image').value.trim(),
+    url: $('ad_url').value.trim(),
+    status: $('ad_status').checked ? 1 : 0,
+    sort_order: parseInt($('ad_order').value) || 0,
+  };
+  if (!body.title) { toast('标题必填'); return; }
+  let r;
+  if (_adEditId) r = await api('/api/admin/ads/' + _adEditId, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  else r = await api('/api/admin/ads', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  const d = await r.json();
+  if (r.ok) { toast('已保存'); closeAdEditor(); loadAds(); } else toast(d.error || '保存失败');
+}
+async function delAd(id) {
+  if (!confirm('确认删除广告 #' + id + '？')) return;
+  await api('/api/admin/ads/' + id, { method: 'DELETE' });
+  loadAds();
+}
+
+async function saveArticle() {
+  stripAudioDelBtns($('editor'));
+  const body = {
+    title: $('e_title').value.trim(),
+    slug: $('e_slug').value.trim(),
+    excerpt: $('e_excerpt').value.trim(),
+    access_type: $('e_access').value,
+    price: parseFloat($('e_price').value) || 0,
+    status: $('e_status').value,
+    is_top: $('e_is_top').checked ? 1 : 0,
+    sort_order: parseInt($('e_sort_order').value) || 0,
+    category_id: $('e_category').value,
+    cover_image: $('e_cover').value.trim(),
+    content: $('editor').innerHTML,
+  };
+  if (!body.title) { toast('标题不能为空'); return; }
+  let r;
+  let articleId = editingId;
+  if (editingId) r = await api('/api/admin/articles/' + editingId, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  else r = await api('/api/admin/articles', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  const d = await r.json();
+  if (!r.ok) { toast(d.error || '保存失败'); return; }
+  if (!articleId) articleId = d.id;
+  if (articleId) await saveLinks(articleId);
+  toast('已保存'); closeEditor();
+}
+
+// ---- 课程章节 / 视频管理 ----
+function addChapter(title) {
+  const div = document.createElement('div');
+  div.className = 'chapter-block';
+  div.innerHTML = `<div class="chapter-head"><input class="ch-title" placeholder="章节标题" value="${esc(title || '')}"><button class="btn-ghost" onclick="addVideo(this.closest('.chapter-block'))">＋ 视频</button><button class="btn-ghost" style="color:var(--danger);" onclick="this.closest('.chapter-block').remove()">删除章节</button></div><div class="chapter-videos"></div>`;
+  $('chapterList').appendChild(div);
+}
+function addVideo(chapterEl) {
+  const div = document.createElement('div');
+  div.className = 'video-row';
+  div.dataset.articleId = '0';
+  div.innerHTML = `<input class="v-title" placeholder="视频标题"><select class="v-type"><option value="bilibili">B站</option><option value="youtube">YouTube</option><option value="direct">直链</option></select><input class="v-url" placeholder="视频地址(BV号/链接)"><label style="display:flex;align-items:center;gap:4px;"><input type="checkbox" class="v-free"> 试看</label><div class="v-link"><input class="v-link-search" placeholder="🔗 绑定文章(搜索标题)..." oninput="searchVideoArticle(this)"><div class="v-link-results"></div><div class="v-link-selected" style="display:none;"><span class="v-link-title"></span><button type="button" class="v-link-clear" onclick="clearVideoArticle(this)">✕</button></div></div><button class="btn-ghost" style="color:var(--danger);" onclick="this.parentElement.remove()">删除</button>`;
+  chapterEl.querySelector('.chapter-videos').appendChild(div);
+}
+function searchVideoArticle(input) {
+  const row = input.closest('.video-row');
+  const results = row.querySelector('.v-link-results');
+  const q = input.value.trim();
+  if (!q) { results.innerHTML = ''; return; }
+  clearTimeout(row._timer);
+  row._timer = setTimeout(async () => {
+    const r = await api('/api/admin/search-items?q=' + encodeURIComponent(q) + '&type=article');
+    const d = await r.json();
+    const items = d.items || [];
+    row._linkResults = items;
+    results.innerHTML = items.length
+      ? items.map((it, i) => `<div class="link-result-item" onclick="pickVideoArticle(this, ${i})">${esc(it.title)}</div>`).join('')
+      : '<div class="link-empty">无匹配结果</div>';
+  }, 250);
+}
+function pickVideoArticle(el, idx) {
+  const row = el.closest('.video-row');
+  const it = row._linkResults[idx];
+  if (!it) return;
+  row.dataset.articleId = it.id;
+  row.querySelector('.v-link-search').value = '';
+  row.querySelector('.v-link-results').innerHTML = '';
+  setVideoArticle(row, it.title);
+}
+function setVideoArticle(row, title) {
+  const sel = row.querySelector('.v-link-selected');
+  sel.style.display = '';
+  sel.querySelector('.v-link-title').textContent = title;
+}
+function clearVideoArticle(btn) {
+  const row = btn.closest('.video-row');
+  row.dataset.articleId = '0';
+  row.querySelector('.v-link-search').value = '';
+  row.querySelector('.v-link-results').innerHTML = '';
+  row.querySelector('.v-link-selected').style.display = 'none';
+}
+async function loadChapters(courseId) {
+  const r = await api('/api/admin/course/' + courseId + '/chapters'); const d = await r.json();
+  $('chapterList').innerHTML = '';
+  d.chapters.forEach(ch => {
+    addChapter(ch.title);
+    const block = $('chapterList').lastElementChild;
+    ch.videos.forEach(v => {
+      addVideo(block);
+      const row = block.querySelector('.chapter-videos').lastElementChild;
+      row.querySelector('.v-title').value = v.title;
+      row.querySelector('.v-type').value = v.video_type;
+      row.querySelector('.v-url').value = v.video_url;
+      row.querySelector('.v-free').checked = !!v.is_free;
+      if (v.article_id) {
+        row.dataset.articleId = v.article_id;
+        setVideoArticle(row, v.article_title || ('文章 #' + v.article_id));
+      }
+    });
+  });
+}
+async function saveChapters() {
+  if (!currentCourseId) { toast('请先保存课程'); return; }
+  const chapters = [];
+  document.querySelectorAll('#chapterList .chapter-block').forEach(block => {
+    const title = block.querySelector('.ch-title').value.trim();
+    if (!title) return;
+    const videos = [];
+    block.querySelectorAll('.video-row').forEach(row => {
+      const t = row.querySelector('.v-title').value.trim();
+      const u = row.querySelector('.v-url').value.trim();
+      if (!t || !u) return;
+      videos.push({ title: t, video_type: row.querySelector('.v-type').value, video_url: u, is_free: row.querySelector('.v-free').checked ? 1 : 0, article_id: parseInt(row.dataset.articleId) || 0 });
+    });
+    chapters.push({ title, videos });
+  });
+  const r = await api('/api/admin/course/' + currentCourseId + '/chapters', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ chapters }) });
+  const d = await r.json();
+  if (d.ok) toast('章节已保存'); else toast(d.error || '保存失败');
+}
+
+async function delArticle(id) {
+  if (!confirm('确认删除文章 #' + id + '？')) return;
+  await api('/api/admin/articles/' + id, { method: 'DELETE' });
+  loadArticles();
+}
+
+// ---- 课程管理 ----
+let courseEditId = null;
+let _courses = [];
+async function loadCourses() {
+  const r = await api('/api/admin/courses'); const d = await r.json();
+  _courses = d.courses || [];
+  _page.course = 1;
+  renderCourses();
+}
+function renderCourses() {
+  const q = ($('courseSearch').value || '').trim().toLowerCase();
+  const list = q ? _courses.filter(c => (c.title || '').toLowerCase().includes(q) || String(c.id).includes(q)) : _courses;
+  const total = list.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  if (_page.course > totalPages) _page.course = totalPages;
+  const start = (_page.course - 1) * PAGE_SIZE;
+  const pageItems = list.slice(start, start + PAGE_SIZE);
+  $('courseList').innerHTML = `<table class="table"><thead><tr><th>ID</th><th>标题</th><th>权限</th><th>价格</th><th>状态</th><th>置顶</th><th>操作</th></tr></thead><tbody>` +
+    pageItems.map(c => `<tr>
+      <td>${c.id}</td><td>${esc(c.title)}</td>
+      <td>${c.access_type === 'paid' ? '<span class="badge badge-paid">付费</span>' : '<span class="badge badge-public">免费</span>'}</td>
+      <td>${c.price > 0 ? '$' + c.price : '-'}</td>
+      <td>${c.status == 1 ? '<span class="badge badge-public">公开</span>' : '<span class="badge badge-draft">隐藏</span>'}</td>
+      <td>${c.is_top ? '📌' : '-'}</td>
+      <td><a href="/course/${c.id}" target="_blank">查看</a> · <a href="#" onclick="editCourse(${c.id});return false;">编辑</a> · <a href="#" style="color:var(--danger);" onclick="delCourse(${c.id});return false;">删除</a></td>
+    </tr>`).join('') + '</tbody></table>' + pagerHtml('course', _page.course, total);
+}
+function filterCourses() {
+  _page.course = 1;
+  renderCourses();
+}
+function openCourseEditor() {
+  courseEditId = null; currentCourseId = null;
+  $('c_editId').textContent = '新建课程';
+  $('c_title').value = ''; $('c_cover').value = ''; $('c_intro').value = '';
+  $('c_access').value = 'public'; $('c_price').value = ''; $('c_status').value = '1';
+  $('c_is_top').checked = false; $('c_order').value = '0';
+  $('chapterList').innerHTML = '';
+  $('courseChapterBox').style.display = 'none';
+  $('courseList').style.display = 'none';
+  $('courseEditor').style.display = 'block';
+  toggleCoursePrice();
+}
+async function editCourse(id) {
+  const r = await api('/api/admin/courses/' + id); const d = await r.json();
+  const c = d.course;
+  courseEditId = id; currentCourseId = id;
+  $('c_editId').textContent = '编辑课程 #' + id;
+  $('c_title').value = c.title; $('c_cover').value = c.cover_image || ''; $('c_intro').value = c.intro || '';
+  $('c_access').value = c.access_type; $('c_price').value = c.price || ''; $('c_status').value = String(c.status);
+  $('c_is_top').checked = !!c.is_top; $('c_order').value = c.sticky_order || 0;
+  $('courseList').style.display = 'none';
+  $('courseEditor').style.display = 'block';
+  $('courseChapterBox').style.display = 'block';
+  loadChapters(id);
+  toggleCoursePrice();
+}
+function toggleCoursePrice() {
+  $('c_price').style.display = $('c_access').value === 'paid' ? '' : 'none';
+}
+async function saveCourse() {
+  const body = {
+    title: $('c_title').value.trim(),
+    cover_image: $('c_cover').value.trim(),
+    intro: $('c_intro').value.trim(),
+    access_type: $('c_access').value,
+    price: parseFloat($('c_price').value) || 0,
+    status: $('c_status').value == '0' ? 0 : 1,
+    is_top: $('c_is_top').checked ? 1 : 0,
+    sticky_order: parseInt($('c_order').value) || 0,
+  };
+  if (!body.title) { toast('课程标题不能为空'); return; }
+  let r;
+  if (courseEditId) r = await api('/api/admin/courses/' + courseEditId, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  else r = await api('/api/admin/courses', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  const d = await r.json();
+  if (r.ok) {
+    if (d.id) courseEditId = d.id;
+    currentCourseId = courseEditId;
+    $('c_editId').textContent = '编辑课程 #' + courseEditId;
+    $('courseChapterBox').style.display = 'block';
+    toast('课程已保存，请添加章节');
+  } else { toast(d.error || '保存失败'); }
+}
+function closeCourseEditor() {
+  $('courseEditor').style.display = 'none';
+  $('courseList').style.display = 'block';
+  loadCourses();
+}
+async function delCourse(id) {
+  if (!confirm('确认删除课程 #' + id + '？')) return;
+  await api('/api/admin/courses/' + id, { method: 'DELETE' });
+  loadCourses();
+}
+
+// ---- 商品管理 ----
+let productEditId = null;
+let _products = [];
+async function loadProducts() {
+  const r = await api('/api/admin/products'); const d = await r.json();
+  _products = d.products || [];
+  _page.product = 1;
+  renderProducts();
+}
+function renderProducts() {
+  const q = ($('productSearch').value || '').trim().toLowerCase();
+  const list = q ? _products.filter(p => (p.name || '').toLowerCase().includes(q) || String(p.id).includes(q)) : _products;
+  const total = list.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  if (_page.product > totalPages) _page.product = totalPages;
+  const start = (_page.product - 1) * PAGE_SIZE;
+  const pageItems = list.slice(start, start + PAGE_SIZE);
+  $('productList').innerHTML = `<table class="table"><thead><tr><th>ID</th><th>名称</th><th>类型</th><th>精选</th><th>价格</th><th>库存</th><th>状态</th><th>操作</th></tr></thead><tbody>` +
+    pageItems.map(p => `<tr>
+      <td>${p.id}</td><td>${esc(p.name)}</td>
+      <td>${p.type === 'virtual' ? '🛒 虚拟' : '📦 实物'}</td>
+      <td>${p.is_featured ? '⭐' : '-'}</td>
+      <td>$${p.sale_price > 0 ? p.sale_price : p.price}</td>
+      <td>${p.type === 'virtual' ? '—' : p.stock}</td>
+      <td>${p.status == 1 ? '<span class="badge badge-public">上架</span>' : '<span class="badge badge-draft">下架</span>'}</td>
+      <td><a href="/product/${p.id}" target="_blank">查看</a> · <a href="#" onclick="editProduct(${p.id});return false;">编辑</a> · <a href="#" style="color:var(--danger);" onclick="delProduct(${p.id});return false;">删除</a></td>
+    </tr>`).join('') + '</tbody></table>' + pagerHtml('product', _page.product, total);
+}
+function filterProducts() {
+  _page.product = 1;
+  renderProducts();
+}
+let _galleryImages = [];
+function renderGalleryList() {
+  const box = $('p_gallery_list');
+  box.innerHTML = _galleryImages.map((src, i) => `<div style="position:relative;width:64px;height:64px;border:1px solid var(--border);border-radius:6px;overflow:hidden;"><img src="${src}" style="width:100%;height:100%;object-fit:cover;"><button type="button" onclick="removeGalleryImage(${i})" style="position:absolute;top:0;right:0;background:rgba(0,0,0,.6);color:#fff;border:none;width:18px;height:18px;line-height:18px;cursor:pointer;font-size:12px;">×</button></div>`).join('');
+}
+function removeGalleryImage(i) { _galleryImages.splice(i, 1); renderGalleryList(); }
+function safeJsonParse(str) { try { const v = JSON.parse(str || '[]'); return Array.isArray(v) ? v : []; } catch { return []; } }
+document.getElementById('galleryInput').addEventListener('change', async (e) => {
+  for (const file of e.target.files) {
+    const fd = new FormData(); fd.append('file', file);
+    const r = await api('/api/admin/upload', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (d.url) { _galleryImages.push(d.url); renderGalleryList(); }
+    else toast(d.error || '上传失败');
+  }
+  e.target.value = '';
+});
+function openProductEditor() {
+  productEditId = null;
+  $('p_editId').textContent = '新建商品';
+  $('p_name').value = ''; $('p_price').value = ''; $('p_sale_price').value = ''; $('p_stock').value = '0';
+  $('p_is_featured').checked = false; $('p_sort_order').value = '0';
+  $('p_type').value = 'physical'; $('p_status').value = '1';
+  $('p_cover').value = ''; $('p_file_url').value = ''; $('p_file_name').textContent = ''; $('p_hidden').value = '';
+  $('p_short_desc').value = '';
+  _galleryImages = []; renderGalleryList();
+  $('p_editor').innerHTML = '';
+  $('productList').style.display = 'none';
+  $('productEditor').style.display = 'block';
+  loadProductCategoryOptions();
+  toggleProductType();
+}
+async function editProduct(id) {
+  const r = await api('/api/admin/products/' + id); const d = await r.json();
+  const p = d.product;
+  productEditId = id;
+  $('p_editId').textContent = '编辑商品 #' + id;
+  $('p_name').value = p.name; $('p_price').value = p.price || ''; $('p_sale_price').value = p.sale_price || '';
+  $('p_stock').value = p.stock > 0 ? p.stock : 0;
+  $('p_is_featured').checked = !!p.is_featured; $('p_sort_order').value = p.sort_order || 0;
+  $('p_type').value = p.type; $('p_status').value = String(p.status);
+  $('p_cover').value = p.cover || ''; $('p_file_url').value = p.file_url || ''; $('p_file_name').textContent = p.file_name || '';
+  $('p_hidden').value = p.hidden_content || '';
+  $('p_short_desc').value = p.short_description || '';
+  _galleryImages = safeJsonParse(p.images); renderGalleryList();
+  $('p_editor').innerHTML = p.description || '';
+  ensureAudioDelBtns($('p_editor'));
+  $('productList').style.display = 'none';
+  $('productEditor').style.display = 'block';
+  loadProductCategoryOptions(p.category_id);
+  toggleProductType();
+}
+function toggleProductType() {
+  const isVirtual = $('p_type').value === 'virtual';
+  $('virtualFields').style.display = isVirtual ? '' : 'none';
+  $('p_stock').style.display = isVirtual ? 'none' : '';
+}
+async function loadProductCategoryOptions(selected) {
+  const r = await api('/api/admin/categories?type=product'); const d = await r.json();
+  $('p_category').innerHTML = '<option value="">无分类</option>' + d.categories.map(c => `<option value="${c.id}" ${selected == c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
+}
+async function saveProduct() {
+  stripAudioDelBtns($('p_editor'));
+  const body = {
+    name: $('p_name').value.trim(),
+    type: $('p_type').value,
+    price: parseFloat($('p_price').value) || 0,
+    sale_price: parseFloat($('p_sale_price').value) || 0,
+    stock: parseInt($('p_stock').value) || 0,
+    status: $('p_status').value == '0' ? 0 : 1,
+    is_featured: $('p_is_featured').checked ? 1 : 0,
+    sort_order: parseInt($('p_sort_order').value) || 0,
+    cover: $('p_cover').value.trim(),
+    short_description: $('p_short_desc').value.trim(),
+    images: JSON.stringify(_galleryImages),
+    file_url: $('p_file_url').value.trim(),
+    file_name: $('p_file_name').textContent.trim(),
+    hidden_content: $('p_hidden').value,
+    description: $('p_editor').innerHTML,
+    category_id: $('p_category').value,
+  };
+  if (!body.name) { toast('商品名称不能为空'); return; }
+  let r;
+  if (productEditId) r = await api('/api/admin/products/' + productEditId, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  else r = await api('/api/admin/products', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  const d = await r.json();
+  if (r.ok) { toast('已保存'); closeProductEditor(); } else { toast(d.error || '保存失败'); }
+}
+function closeProductEditor() {
+  $('productEditor').style.display = 'none';
+  $('productList').style.display = 'block';
+  loadProducts();
+}
+async function delProduct(id) {
+  if (!confirm('确认删除商品 #' + id + '？')) return;
+  await api('/api/admin/products/' + id, { method: 'DELETE' });
+  loadProducts();
+}
+$('productFileInput').addEventListener('change', async (e) => {
+  const file = e.target.files[0]; if (!file) return;
+  const fd = new FormData(); fd.append('file', file);
+  const r = await api('/api/admin/upload', { method: 'POST', body: fd });
+  const d = await r.json();
+  if (d.url) { $('p_file_url').value = d.url; $('p_file_name').textContent = file.name; toast('文件已上传'); }
+  else toast(d.error || '上传失败');
+  e.target.value = '';
+});
+
+// ---- 商品订单 ----
+let _productOrders = [];
+const PO_STATUS = { pending: '待支付', paid: '已支付', shipped: '已发货', completed: '已完成', cancelled: '已取消' };
+const PO_METHOD = { alipay: '支付宝', wxpay: '微信', usdt: 'USDT', stripe: 'Stripe', vip: 'VIP' };
+async function loadProductOrders() {
+  const r = await api('/api/admin/product-orders'); const d = await r.json();
+  _productOrders = d.orders || [];
+  renderProductOrders(_productOrders);
+}
+function filterProductOrders() {
+  const from = $('poDateFrom').value, to = $('poDateTo').value;
+  const status = $('poStatus').value, type = $('poType').value, method = $('poMethod').value;
+  const list = _productOrders.filter(o => {
+    const d = (o.created_at || '').slice(0, 10);
+    if (from && d < from) return false;
+    if (to && d > to) return false;
+    if (status && o.status !== status) return false;
+    if (type && o.product_type !== type) return false;
+    if (method && o.payment_method !== method) return false;
+    return true;
+  });
+  renderProductOrders(list);
+}
+function resetProductOrderFilters() {
+  $('poDateFrom').value = ''; $('poDateTo').value = '';
+  $('poStatus').value = ''; $('poType').value = ''; $('poMethod').value = '';
+  renderProductOrders(_productOrders);
+}
+function renderProductOrders(list) {
+  // 待处理专栏：实物 + 已支付（待发货）
+  const pending = list.filter(o => o.product_type === 'physical' && o.status === 'paid');
+  const pendingSection = $('pendingSection');
+  if (pending.length > 0) {
+    pendingSection.style.display = '';
+    $('pendingCount').textContent = pending.length;
+    $('pendingShipList').innerHTML = pending.map(o => `
+      <div class="pending-card">
+        <div class="pc-head"><span class="pc-order">${esc(o.order_no)}</span><span style="font-size:.8rem;color:var(--gold);">待发货</span></div>
+        <div class="pc-row">商品：${esc(o.product_name)} × ${o.quantity}</div>
+        <div class="pc-row">收货：${esc(o.address_name)} ${esc(o.address_phone)}</div>
+        <div class="pc-row" style="font-size:.8rem;">${esc([o.address_province, o.address_city, o.address_detail].filter(Boolean).join(' '))}</div>
+        <div class="pc-row">金额：$${o.total_amount} · ${(o.created_at || '').slice(0,16)}</div>
+        <div class="pc-actions">
+          <button class="btn-primary" onclick="openPoShip(${o.id})">🚚 发货</button>
+          <button class="btn-ghost" onclick="openPoDetail(${o.id})">查看详情</button>
+        </div>
+      </div>`).join('');
+  } else {
+    pendingSection.style.display = 'none';
+  }
+  // 全部订单表格
+  $('productOrderList').innerHTML = `<table class="table"><thead><tr><th>ID</th><th>订单号</th><th>商品</th><th>类型</th><th>金额</th><th>收货信息</th><th>状态</th><th>物流</th><th>操作</th></tr></thead><tbody>` +
+    list.map(o => {
+      const addr = o.product_type === 'physical' ? `${esc(o.address_name)} ${esc(o.address_phone)}` : '—';
+      const tracking = o.tracking_no ? `${esc(o.tracking_company || '')} ${esc(o.tracking_no)}` : '—';
+      let actions = `<button class="btn-ghost" onclick="openPoDetail(${o.id})">详情</button>`;
+      if (o.status === 'paid' && o.product_type === 'physical') actions += ` <button class="btn-primary" onclick="openPoShip(${o.id})">🚚 发货</button>`;
+      if (o.status === 'shipped') actions += ` <button class="btn-ghost" onclick="orderAction(${o.id},'complete')">✅ 完成</button>`;
+      if (o.status === 'paid' || o.status === 'pending') actions += ` <button class="btn-ghost" style="color:var(--danger);" onclick="orderAction(${o.id},'cancel')">取消</button>`;
+      return `<tr>
+        <td>${o.id}</td><td>${esc(o.order_no)}</td><td>${esc(o.product_name)}</td>
+        <td>${o.product_type === 'virtual' ? '虚拟' : '实物'}</td>
+        <td>$${o.total_amount}</td><td>${addr}</td>
+        <td>${PO_STATUS[o.status] || o.status}</td><td>${tracking}</td>
+        <td>${actions}</td>
+      </tr>`;
+    }).join('') + '</tbody></table>';
+}
+function openPoDetail(id) {
+  const o = _productOrders.find(x => x.id === id); if (!o) return;
+  $('poModalTitle').textContent = '订单详情';
+  const addr = o.product_type === 'physical'
+    ? `${esc(o.address_name)} ${esc(o.address_phone)}<br><span style="font-size:.85rem;color:var(--text-muted)">${esc([o.address_country, o.address_province, o.address_city, o.address_detail, o.address_zip].filter(Boolean).join(' '))}</span>`
+    : '—';
+  $('poModalBody').innerHTML = `
+    <div class="detail-row"><span class="dk">订单号</span><span class="dv">${esc(o.order_no)}</span></div>
+    <div class="detail-row"><span class="dk">商品</span><span class="dv">${esc(o.product_name)} × ${o.quantity}</span></div>
+    <div class="detail-row"><span class="dk">类型</span><span class="dv">${o.product_type === 'virtual' ? '虚拟' : '实物'}</span></div>
+    <div class="detail-row"><span class="dk">金额</span><span class="dv">$${o.total_amount}（单价 $${o.unit_price}）</span></div>
+    <div class="detail-row"><span class="dk">支付方式</span><span class="dv">${PO_METHOD[o.payment_method] || esc(o.payment_method || '-')}</span></div>
+    <div class="detail-row"><span class="dk">状态</span><span class="dv">${PO_STATUS[o.status] || o.status}</span></div>
+    <div class="detail-row"><span class="dk">收货信息</span><span class="dv">${addr}</span></div>
+    <div class="detail-row"><span class="dk">物流</span><span class="dv">${o.tracking_no ? esc(o.tracking_company || '') + ' ' + esc(o.tracking_no) : '—'}</span></div>
+    <div class="detail-row"><span class="dk">下单时间</span><span class="dv">${(o.created_at || '').slice(0,16)}</span></div>
+    ${o.shipped_at ? `<div class="detail-row"><span class="dk">发货时间</span><span class="dv">${(o.shipped_at || '').slice(0,16)}</span></div>` : ''}
+    <div class="detail-row"><span class="dk">备注</span><span class="dv">${esc(o.remark || '—')}</span></div>`;
+  $('poModal').style.display = 'flex';
+}
+function openPoShip(id) {
+  const o = _productOrders.find(x => x.id === id); if (!o) return;
+  $('poModalTitle').textContent = '发货';
+  $('poModalBody').innerHTML = `
+    <p style="color:var(--text-muted);margin-bottom:14px;">订单 ${esc(o.order_no)} · ${esc(o.product_name)}</p>
+    <div class="form-group"><label>物流公司</label><input id="shipCompany" placeholder="如：顺丰、圆通、DHL"></div>
+    <div class="form-group"><label>物流单号</label><input id="shipNo" placeholder="填写快递单号"></div>
+    <div class="form-error" id="shipErr"></div>
+    <button class="btn-primary" style="width:100%;" onclick="confirmShip(${id})">确认发货</button>`;
+  $('poModal').style.display = 'flex';
+}
+function closePoModal() { $('poModal').style.display = 'none'; }
+function confirmShip(id) {
+  const no = $('shipNo').value.trim();
+  const company = $('shipCompany').value.trim();
+  const err = $('shipErr');
+  if (!no) { err.textContent = '请填写物流单号'; return; }
+  orderAction(id, 'ship', { tracking_no: no, tracking_company: company });
+}
+async function orderAction(id, action, extra) {
+  const body = Object.assign({ action }, extra || {});
+  if (action === 'cancel' && !confirm('确认取消该订单？实物商品会回补库存')) return;
+  const r = await api('/api/admin/product-orders/' + id, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  const d = await r.json();
+  if (d.error) toast(d.error); else { toast('已处理'); closePoModal(); }
+  loadProductOrders();
+}
+
+// ---- Editor commands ----
+function ed(cmd, val) {
+  const el = $('editor'); if (!el) return;
+  restoreSavedRange(el);
+  document.execCommand(cmd, false, val || null);
+  _savedRange = null;
+  if (cmd === 'formatBlock') _collapseToEnd();
+}
+function insertLink() {
+  const url = prompt('链接地址', 'https://');
+  if (url) ed('createLink', url);
+}
+async function uploadImage() {
+  $('imgInput').click();
+}
+$('imgInput').addEventListener('change', async (e) => {
+  const file = e.target.files[0]; if (!file) return;
+  const fd = new FormData(); fd.append('file', file);
+  const r = await api('/api/admin/upload', { method: 'POST', body: fd });
+  const d = await r.json();
+  if (d.url) {
+    const el = $('editor');
+    const img = document.createElement('img');
+    img.src = d.url; img.alt = ''; img.loading = 'lazy';
+    img.style.maxWidth = '100%'; img.style.borderRadius = '10px';
+    insertBlockAtSel(el, img);
+    toast('图片已上传');
+  }
+  else toast(d.error || '上传失败');
+  e.target.value = '';
+});
+async function uploadCover() {
+  $('coverInput').click();
+}
+function showCoverPreview(url) {
+  const img = $('coverPreview');
+  if (url) { img.src = url; img.style.display = ''; $('coverClearBtn').style.display = ''; }
+  else { img.style.display = 'none'; $('coverClearBtn').style.display = 'none'; }
+}
+function clearCover() { $('e_cover').value = ''; showCoverPreview(''); }
+$('coverInput').addEventListener('change', async (e) => {
+  const file = e.target.files[0]; if (!file) return;
+  const fd = new FormData(); fd.append('file', file);
+  const r = await api('/api/admin/upload', { method: 'POST', body: fd });
+  const d = await r.json();
+  if (d.url) { $('e_cover').value = d.url; showCoverPreview(d.url); toast('封面已上传'); }
+  else toast(d.error || '上传失败');
+  e.target.value = '';
+});
+function youtubeId(url) {
+  const m = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
+function embedYouTube() {
+  const url = prompt('YouTube 链接', 'https://www.youtube.com/watch?v=');
+  if (!url) return;
+  const id = youtubeId(url);
+  if (!id) { toast('无效的 YouTube 链接'); return; }
+  insertVideoWrap(`https://www.youtube.com/embed/${id}`);
+}
+function embedBilibili() {
+  const url = prompt('Bilibili 链接', 'https://www.bilibili.com/video/BVxxxx');
+  if (!url) return;
+  const m = url.match(/(BV[a-zA-Z0-9]+)/);
+  if (!m) { toast('无效的 Bilibili 链接'); return; }
+  insertVideoWrap(`https://player.bilibili.com/player.html?bvid=${m[1]}&page=1`);
+}
+// ---- 光标感知插入（块级内容插到光标位置，而非编辑器末尾）----
+function restoreSavedRange(el) {
+  if (!el) return false;
+  el.focus();
+  if (_savedRange && el.contains(_savedRange.commonAncestorContainer)) {
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(_savedRange);
+    return true;
+  }
+  return false;
+}
+// 判断块是否为空白（无内容或仅 <br>）
+function isBlankBlock(block) {
+  if (!block) return true;
+  if (block.childNodes.length === 0) return true;
+  if (block.childNodes.length === 1 && block.firstChild.nodeName === 'BR') return true;
+  return false;
+}
+// 把光标范围规范化到"块级元素之间"的位置：
+// 光标在段首 -> 移到段前；段尾 -> 段后；段中 -> 拆段，块插两段之间；
+// 空段落 -> 直接移除，块落在原位置。避免 div 嵌进 <p> 内部产生非法结构。
+function normalizeRangeForBlock(range, root) {
+  const sc = range.startContainer;
+  if (!sc || !root.contains(sc)) return;
+  let node = sc.nodeType === 3 ? sc.parentNode : sc;
+  if (!node || node === root) return;
+  const block = node.closest ? node.closest('p,h1,h2,h3,h4,h5,h6,blockquote,li,pre,div') : null;
+  if (!block || block === root) return;
+  const container = block.parentNode;
+  const idx = Array.prototype.indexOf.call(container.childNodes, block);
+  const offset = range.startOffset;
+  const blank = isBlankBlock(block);
+  if (blank) {
+    block.remove();
+    range.setStart(container, Math.max(0, idx));
+    range.collapse(true);
+    return;
+  }
+  if (sc.nodeType === 3) {
+    const text = sc.data || '';
+    if (offset <= 0) {
+      range.setStart(container, idx);
+      range.collapse(true);
+    } else if (offset >= text.length) {
+      range.setStart(container, idx + 1);
+      range.collapse(true);
+    } else {
+      const tail = sc.splitText(offset);
+      if (tail.length) {
+        const nb = document.createElement(block.tagName);
+        nb.appendChild(tail);
+        container.insertBefore(nb, block.nextSibling);
+      }
+      range.setStart(container, idx + 1);
+      range.collapse(true);
+    }
+  } else {
+    const children = block.childNodes;
+    if (offset <= 0) {
+      range.setStart(container, idx);
+      range.collapse(true);
+    } else if (offset >= children.length) {
+      range.setStart(container, idx + 1);
+      range.collapse(true);
+    } else {
+      range.setStart(container, idx + 1);
+      range.collapse(true);
+    }
+  }
+}
+// 在保存的光标处插入节点；光标失效则追加到末尾（安全降级）
+function insertBlockAtSel(el, node) {
+  if (!el || !node) return node;
+  el.focus();
+  let range = null;
+  if (_savedRange && el.contains(_savedRange.commonAncestorContainer)) range = _savedRange;
+  else if (window.getSelection().rangeCount > 0) {
+    const r = window.getSelection().getRangeAt(0);
+    if (el.contains(r.commonAncestorContainer)) range = r;
+  }
+  if (range) {
+    range.deleteContents();
+    normalizeRangeForBlock(range, el);
+    range.insertNode(node);
+    _savedRange = null;
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    const rr = document.createRange();
+    rr.setStartAfter(node);
+    rr.collapse(true);
+    sel.addRange(rr);
+  } else {
+    el.appendChild(node);
+  }
+  return node;
+}
+// 在节点后插入空段落并把光标放进去（方便继续输入）
+function _insertBreakAfter(node) {
+  if (!node || !node.parentNode) return;
+  const p = document.createElement('p');
+  p.innerHTML = '<br>';
+  node.parentNode.insertBefore(p, node.nextSibling);
+  const range = document.createRange();
+  const sel = window.getSelection();
+  range.setStart(p, 0);
+  range.collapse(true);
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+function embedDirectVideo() {
+  const url = prompt('视频直链 (mp4/webm 等对象存储直链)', 'https://');
+  if (!url) return;
+  const v = document.createElement('video');
+  v.controls = true; v.src = url; v.style.maxWidth = '100%';
+  const wrap = document.createElement('div'); wrap.className = 'video-wrap'; wrap.appendChild(v);
+  insertBlockAtSel($('editor'), wrap);
+  _insertBreakAfter(wrap);
+}
+function insertVideoWrap(src) {
+  const wrap = document.createElement('div');
+  wrap.className = 'video-wrap';
+  wrap.innerHTML = `<iframe src="${src}" allowfullscreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe>`;
+  insertBlockAtSel($('editor'), wrap);
+  _insertBreakAfter(wrap);
+}
+
+// ---- Generic editor commands (id-aware, for product/about editors) ----
+function gExec(id, cmd, val) {
+  const el = $(id); if (!el) return;
+  restoreSavedRange(el);
+  document.execCommand(cmd, false, val || null);
+  _savedRange = null;
+  if (cmd === 'formatBlock') _collapseToEnd();
+}
+function gLink(id) {
+  const el = $(id); if (!el) return;
+  const url = prompt('链接地址', 'https://');
+  if (!url) return;
+  restoreSavedRange(el);
+  document.execCommand('createLink', false, url);
+  _savedRange = null;
+}
+function gVideoWrap(id, src) {
+  const el = $(id); if (!el) return;
+  const wrap = document.createElement('div');
+  wrap.className = 'video-wrap';
+  wrap.innerHTML = '<iframe src="' + src + '" allowfullscreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe>';
+  insertBlockAtSel(el, wrap);
+  _insertBreakAfter(wrap);
+}
+function gYouTube(id) {
+  const url = prompt('YouTube 链接', 'https://www.youtube.com/watch?v=');
+  if (!url) return;
+  const vid = youtubeId(url);
+  if (!vid) { toast('无效的 YouTube 链接'); return; }
+  gVideoWrap(id, 'https://www.youtube.com/embed/' + vid);
+}
+function gBilibili(id) {
+  const url = prompt('Bilibili 链接', 'https://www.bilibili.com/video/BVxxxx');
+  if (!url) return;
+  const m = url.match(/(BV[a-zA-Z0-9]+)/);
+  if (!m) { toast('无效的 Bilibili 链接'); return; }
+  gVideoWrap(id, 'https://player.bilibili.com/player.html?bvid=' + m[1] + '&page=1');
+}
+function gDirectVideo(id) {
+  const url = prompt('视频直链 (mp4/webm)', 'https://');
+  if (!url) return;
+  const el = $(id); if (!el) return;
+  const v = document.createElement('video');
+  v.controls = true; v.src = url; v.style.maxWidth = '100%';
+  const wrap = document.createElement('div'); wrap.className = 'video-wrap'; wrap.appendChild(v);
+  insertBlockAtSel(el, wrap);
+  _insertBreakAfter(wrap);
+}
+function gTable(id) {
+  let cols = parseInt(prompt('表格列数 (2-6)', '3'), 10) || 3;
+  let rows = parseInt(prompt('表格行数 (2-10)', '3'), 10) || 3;
+  if (cols < 2) cols = 2; if (cols > 6) cols = 6;
+  if (rows < 2) rows = 2; if (rows > 10) rows = 10;
+  let html = '<table style="border-collapse:collapse;width:100%;margin:12px 0;">';
+  for (let i = 0; i < rows; i++) {
+    html += '<tr>';
+    for (let j = 0; j < cols; j++) html += '<td style="border:1px solid #3d454f;padding:6px 10px;">&nbsp;</td>';
+    html += '</tr>';
+  }
+  html += '</table>';
+  const el = $(id); if (!el) return;
+  const holder = document.createElement('div');
+  holder.innerHTML = html;
+  const node = holder.firstChild;
+  insertBlockAtSel(el, node);
+  _insertBreakAfter(node);
+}
+function gColumns(id) {
+  const n = parseInt(prompt('分栏数量 (2 或 3)', '2'), 10);
+  if (n !== 2 && n !== 3) { if (n) toast('请输入 2 或 3'); return; }
+  let inner = '';
+  for (let i = 0; i < n; i++) inner += '<div class="about-col" style="flex:1;min-height:60px;border:1px dashed #3d454f;padding:8px;">第' + (i + 1) + '栏</div>';
+  const el = $(id); if (!el) return;
+  const holder = document.createElement('div');
+  holder.innerHTML = '<div class="about-columns" style="display:flex;gap:16px;margin:12px 0;">' + inner + '</div>';
+  const node = holder.firstChild;
+  insertBlockAtSel(el, node);
+  _insertBreakAfter(node);
+}
+function gIframe(id) {
+  const url = prompt('请输入要嵌入的网页 URL', 'https://');
+  if (!url) return;
+  const u = url.trim();
+  if (!/^https?:\/\//i.test(u)) { toast('请输入以 http:// 或 https:// 开头的完整 URL'); return; }
+  const el = $(id); if (!el) return;
+  const holder = document.createElement('div');
+  holder.innerHTML = '<div class="iframe-wrap" contenteditable="false"><iframe src="' + esc(u) + '" loading="lazy" allowfullscreen></iframe><div class="iframe-bar"><a href="' + esc(u) + '" target="_blank" rel="noopener noreferrer">↗ 在新标签页打开</a></div></div>';
+  const node = holder.firstChild;
+  insertBlockAtSel(el, node);
+  _insertBreakAfter(node);
+}
+let _savedRange = null;
+function _saveSel() {
+  const sel = window.getSelection();
+  if (sel && sel.rangeCount > 0) _savedRange = sel.getRangeAt(0).cloneRange();
+}
+function _collapseToEnd() {
+  const sel = window.getSelection();
+  if (sel.rangeCount > 0) { const r = sel.getRangeAt(0); r.collapse(false); sel.removeAllRanges(); sel.addRange(r); }
+}
+function bindEnterKeepFormat(editorId) {
+  const el = $(editorId);
+  if (!el) return;
+  el.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' || e.shiftKey || e.ctrlKey || e.metaKey) return;
+    const sel = window.getSelection();
+    if (!sel.rangeCount) return;
+    let node = sel.anchorNode;
+    if (node && node.nodeType === 3) node = node.parentElement;
+    const block = node ? node.closest('h1,h2,h3,h4,h5,h6,blockquote') : null;
+    if (!block) return;
+    const tag = block.tagName.toLowerCase();
+    e.preventDefault();
+    const newBlock = document.createElement(tag);
+    newBlock.innerHTML = '<br>';
+    if (block.nextSibling) {
+      block.parentNode.insertBefore(newBlock, block.nextSibling);
+    } else {
+      block.parentNode.appendChild(newBlock);
+    }
+    const range = document.createRange();
+    range.setStart(newBlock, 0);
+    range.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(range);
+  });
+}
+function gColor(id, color) {
+  const el = $(id); if (!el) return;
+  restoreSavedRange(el);
+  document.execCommand('foreColor', false, color);
+  _savedRange = null;
+}
+function gHilite(id, color) {
+  const el = $(id); if (!el) return;
+  restoreSavedRange(el);
+  document.execCommand('hiliteColor', false, color);
+  _savedRange = null;
+}
+function gUpload(id, inputId) {
+  const inp = $(inputId); if (inp) inp.click();
+}
+function bindImg(inputId, editorId) {
+  const inp = $(inputId); if (!inp) return;
+  inp.addEventListener('change', async (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    const fd = new FormData(); fd.append('file', file);
+    const r = await api('/api/admin/upload', { method: 'POST', body: fd });
+    const d = await r.json();
+    const el = $(editorId);
+    if (d.url) {
+      const holder = document.createElement('div');
+      holder.innerHTML = '<p style="text-align:center;"><img src="' + esc(d.url) + '" alt="" loading="lazy" style="max-width:100%;height:auto;border-radius:10px;"></p>';
+      if (el) insertBlockAtSel(el, holder.firstChild);
+      toast('图片已上传');
+    }
+    else toast(d.error || '上传失败');
+    e.target.value = '';
+  });
+}
+
+// ---- 音频上传（老式留声机播放器块）----
+function gramophoneSvg() {
+  return '<svg class="ap-gram" viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+    + '<path d="M6.5 14.5 L6.5 8.5 C6.5 5.8 8.2 4.2 10.8 4.2"/>'
+    + '<path d="M10.8 4.2 C10.8 4.2 11 1.8 13.6 1.2 C15.8 0.8 18.2 1.6 19.3 3.5 C20.2 5 19.6 6.5 17.7 7.4 C15.9 8.2 12.8 7.6 10.8 4.2 Z" fill="currentColor" fill-opacity="0.13"/>'
+    + '<rect x="3" y="13" width="11" height="6.6" rx="1.3"/>'
+    + '<circle class="ap-disc" cx="8.5" cy="13" r="2.7"/>'
+    + '<circle cx="8.5" cy="13" r="0.7" fill="currentColor" stroke="none"/>'
+    + '</svg>';
+}
+function audioBlockHtml(src, title) {
+  return '<div class="audio-player" data-src="' + esc(src) + '" data-title="' + esc(title) + '" contenteditable="false">'
+    + '<button class="ap-play" type="button" aria-label="播放音频" title="点击播放">' + gramophoneSvg() + '</button>'
+    + '<div class="ap-info">'
+    + '<div class="ap-title">' + esc(title) + '</div>'
+    + '<div class="ap-track"><div class="ap-bar"><div class="ap-bar-fill"></div></div><span class="ap-time">0:00</span></div>'
+    + '</div>'
+    + '<button class="ap-del" type="button" title="删除音频" onclick="removeAudioBlock(this)">✕</button>'
+    + '</div>';
+}
+// 编辑器内：移除整个音频块（点击 ✕）
+function removeAudioBlock(btn) {
+  const ap = btn && btn.closest ? btn.closest('.audio-player') : null;
+  if (!ap) return;
+  ap.remove();
+}
+// 编辑器内容加载后：给所有音频块补上删除按钮（老内容没有）
+function ensureAudioDelBtns(root) {
+  if (!root) return;
+  root.querySelectorAll('.audio-player').forEach((ap) => {
+    if (!ap.querySelector('.ap-del')) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'ap-del';
+      btn.title = '删除音频';
+      btn.textContent = '✕';
+      btn.onclick = function () { removeAudioBlock(btn); };
+      ap.appendChild(btn);
+    }
+  });
+}
+// 保存前：剥离删除按钮，避免入库内容带 ✕ 污染前端展示
+function stripAudioDelBtns(root) {
+  if (!root) return;
+  root.querySelectorAll('.ap-del').forEach((b) => b.remove());
+}
+function bindAudio(inputId, editorId) {
+  const inp = $(inputId); if (!inp) return;
+  inp.addEventListener('change', async (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    const fd = new FormData(); fd.append('file', file);
+    const r = await api('/api/admin/upload', { method: 'POST', body: fd });
+    const d = await r.json();
+    const el = $(editorId);
+    if (d.url) {
+      const holder = document.createElement('div');
+      holder.innerHTML = audioBlockHtml(d.url, file.name);
+      const block = holder.firstChild;
+      if (el) { insertBlockAtSel(el, block); _insertBreakAfter(block); }
+      toast('音频已上传');
+    } else toast(d.error || '上传失败');
+    e.target.value = '';
+  });
+}
+
+// ---- Categories ----
+let _categories = [];
+async function loadCategories() {
+  const r = await api('/api/admin/categories'); const d = await r.json();
+  _categories = d.categories || [];
+  $('categoryList').innerHTML = `<table class="table"><thead><tr><th>ID</th><th>名称</th><th>slug</th><th>类型</th><th>文章数</th><th>操作</th></tr></thead><tbody>` +
+    _categories.map(c => `<tr><td>${c.id}</td><td>${esc(c.name)}</td><td>${esc(c.slug)}</td><td>${esc(TYPE_LABELS[c.type] || '文章')}</td><td>${c.article_count}</td>
+      <td><a href="#" onclick="editCategory(${c.id});return false;">编辑</a> · <a href="/category/${c.slug}" target="_blank">查看</a> · <a href="#" style="color:var(--danger);" onclick="delCategory(${c.id});return false;">删除</a></td></tr>`).join('') +
+    '</tbody></table>';
+}
+async function saveCategory() {
+  const name = $('c_name').value.trim();
+  if (!name) { toast('请输入分类名'); return; }
+  const body = { name, slug: $('c_slug').value, description: $('c_desc').value, sort_order: $('c_order').value, type: $('c_type').value };
+  const editId = $('c_edit_id').value;
+  if (editId) {
+    await api('/api/admin/categories/' + editId, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    toast('已更新分类');
+  } else {
+    await api('/api/admin/categories', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    toast('已添加分类');
+  }
+  resetCategoryForm();
+  loadCategories();
+}
+function editCategory(id) {
+  const c = _categories.find(x => x.id === id);
+  if (!c) return;
+  $('c_edit_id').value = c.id;
+  $('c_name').value = c.name || '';
+  $('c_slug').value = c.slug || '';
+  $('c_desc').value = c.description || '';
+  $('c_type').value = c.type || 'article';
+  $('c_order').value = c.sort_order || 0;
+  $('c_save_btn').textContent = '保存修改';
+  $('c_cancel_btn').style.display = '';
+}
+function cancelEditCategory() { resetCategoryForm(); }
+function resetCategoryForm() {
+  $('c_edit_id').value = '';
+  $('c_name').value = ''; $('c_slug').value = ''; $('c_desc').value = ''; $('c_order').value = '0';
+  $('c_save_btn').textContent = '添加';
+  $('c_cancel_btn').style.display = 'none';
+}
+async function delCategory(id) {
+  if (!confirm('删除分类会把其下文章改为未分类，确认？')) return;
+  await api('/api/admin/categories/' + id, { method: 'DELETE' });
+  loadCategories();
+}
+
+// ---- Membership ----
+// VIP_ACCESS_KEYS 的值带 vip_ 前缀，但 DOM checkbox id 是 mvip_ + 去掉前缀（如 mvip_article_access）
+function mvipId(k) { return 'mvip_' + k.replace(/^vip_/, ''); }
+async function loadMembership() {
+  const r = await api('/api/admin/settings'); const d = await r.json();
+  VIP_ACCESS_KEYS.forEach(k => { const el = $(mvipId(k)); if (el) el.checked = (d.settings[k] ?? VIP_DEFAULTS[k]) !== '0'; });
+  const de = $('mvip_product_discount'); if (de) de.value = d.settings.vip_product_discount ?? '100';
+  const pr = await api('/api/admin/plans'); const pd = await pr.json();
+  renderPlans(pd.plans || []);
+}
+async function saveVipSettings() {
+  const body = {};
+  VIP_ACCESS_KEYS.forEach(k => { const el = $(mvipId(k)); if (el) body[k] = el.checked ? '1' : '0'; });
+  body.vip_product_discount = $('mvip_product_discount').value || '100';
+  await api('/api/admin/settings', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  toast('权限设置已保存');
+}
+function durationText(p) {
+  if (p.duration_type === 'forever') return '永久';
+  if (p.duration_type === 'day') return p.duration_value + ' 天';
+  if (p.duration_type === 'month') return p.duration_value + ' 个月';
+  if (p.duration_type === 'year') return p.duration_value + ' 年';
+  return p.duration_type;
+}
+function renderPlans(plans) {
+  const rows = plans.map((p, i) => {
+    const benefits = (p.benefits || '').split('\n').filter(Boolean).map(b => `<div style="font-size:.82rem;color:var(--text-muted);">✓ ${esc(b)}</div>`).join('');
+    const statusHtml = p.status === 1 ? '<span style="color:var(--teal);">启用</span>' : '<span style="color:#ff6b6b;">停用</span>';
+    return `<tr>
+      <td>${p.id}</td>
+      <td><strong>${esc(p.name)}</strong><div style="font-size:.8rem;color:var(--text-muted);">${esc(p.key)}</div></td>
+      <td>${durationText(p)}</td>
+      <td>${p.price} ${esc(p.currency || 'USD')}</td>
+      <td>${benefits || '<span style="color:var(--text-muted);">-</span>'}</td>
+      <td>${p.sort_order}</td>
+      <td>${statusHtml}</td>
+      <td style="white-space:nowrap;">
+        <button class="btn-ghost" onclick="editPlan(${p.id})">✏️ 编辑</button>
+        <button class="btn-ghost" onclick="movePlan(${p.id}, ${i > 0 ? -1 : 1})" ${i === 0 ? 'disabled' : ''}>↑</button>
+        <button class="btn-ghost" onclick="movePlan(${p.id}, 1)" ${i === plans.length - 1 ? 'disabled' : ''}>↓</button>
+        <button class="btn-ghost" style="color:var(--danger);" onclick="delPlan(${p.id})">🗑 删除</button>
+      </td>
+    </tr>`;
+  }).join('');
+  $('planList').innerHTML = `<table class="table"><thead><tr><th>ID</th><th>名称</th><th>周期</th><th>价格</th><th>权益</th><th>排序</th><th>状态</th><th>操作</th></tr></thead><tbody>` +
+    (rows || '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);">暂无会员项，点击右上角「＋ 添加会员项」创建</td></tr>') + '</tbody></table>';
+}
+let _planKeyAuto = true; // 新增时 key 是否跟随周期自动生成；用户手动改过后为 false
+function planKeySuggestion() {
+  const type = $('plan_duration_type').value;
+  const val = parseInt($('plan_duration_value').value, 10) || 1;
+  if (type === 'forever') return 'forever';
+  if (type === 'day') return val === 1 ? 'daily' : val + 'day';
+  if (type === 'month') return val === 1 ? 'monthly' : (val === 3 ? 'quarterly' : val + 'month');
+  if (type === 'year') return val === 1 ? 'annual' : val + 'year';
+  return 'plan-' + Date.now();
+}
+function onKeyManualEdit() { _planKeyAuto = false; }
+function showPlanEditor() {
+  $('planEditor').style.display = 'block';
+  $('planEditorTitle').textContent = '添加会员项';
+  $('plan_id').value = '';
+  $('plan_name').value = ''; $('plan_key').value = '';
+  $('plan_key').disabled = false;
+  _planKeyAuto = true;
+  $('plan_duration_type').value = 'month'; $('plan_duration_value').value = '1';
+  $('plan_price').value = ''; $('plan_currency').value = 'USD';
+  $('plan_benefits').value = ''; $('plan_sort_order').value = '0'; $('plan_status').checked = true;
+  toggleDurationValue();
+}
+function hidePlanEditor() { $('planEditor').style.display = 'none'; }
+function toggleDurationValue() {
+  const forever = $('plan_duration_type').value === 'forever';
+  $('plan_duration_value').disabled = forever;
+  if (forever) $('plan_duration_value').value = '1';
+  // 周期变化时，若用户未手动改过 key，则自动同步
+  if (_planKeyAuto) $('plan_key').value = planKeySuggestion();
+}
+async function editPlan(id) {
+  const r = await api('/api/admin/plans'); const d = await r.json();
+  const p = (d.plans || []).find(x => x.id === id);
+  if (!p) return;
+  $('planEditor').style.display = 'block';
+  $('planEditorTitle').textContent = '编辑会员项 #' + id;
+  $('plan_id').value = p.id;
+  $('plan_name').value = p.name || '';
+  $('plan_key').value = p.key || '';
+  $('plan_key').disabled = true;
+  _planKeyAuto = false;
+  $('plan_duration_type').value = p.duration_type || 'month';
+  $('plan_duration_value').value = p.duration_value || 1;
+  $('plan_price').value = p.price || 0;
+  $('plan_currency').value = p.currency || 'USD';
+  $('plan_benefits').value = p.benefits || '';
+  $('plan_sort_order').value = p.sort_order || 0;
+  $('plan_status').checked = p.status !== 0;
+  toggleDurationValue();
+  $('planEditor').scrollIntoView({ behavior: 'smooth' });
+}
+async function savePlan() {
+  const id = $('plan_id').value;
+  const body = {
+    name: $('plan_name').value.trim(),
+    key: $('plan_key').value.trim(),
+    duration_type: $('plan_duration_type').value,
+    duration_value: parseInt($('plan_duration_value').value, 10) || 1,
+    price: parseFloat($('plan_price').value) || 0,
+    currency: $('plan_currency').value.trim() || 'USD',
+    benefits: $('plan_benefits').value,
+    sort_order: parseInt($('plan_sort_order').value, 10) || 0,
+    status: $('plan_status').checked ? 1 : 0,
+  };
+  if (!body.name) { toast('请填写会员名称'); return; }
+  const url = id ? '/api/admin/plans/' + id : '/api/admin/plans';
+  const method = id ? 'PUT' : 'POST';
+  const r = await api(url, { method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  const d = await r.json();
+  if (d.error) { toast(d.error); return; }
+  toast('已保存');
+  hidePlanEditor();
+  $('plan_key').disabled = false;
+  loadMembership();
+}
+async function delPlan(id) {
+  if (!confirm('确认删除该会员项？已有会员不受影响。')) return;
+  await api('/api/admin/plans/' + id, { method: 'DELETE' });
+  toast('已删除');
+  loadMembership();
+}
+async function movePlan(id, dir) {
+  const r = await api('/api/admin/plans'); const d = await r.json();
+  const plans = d.plans || [];
+  const idx = plans.findIndex(x => x.id === id);
+  if (idx < 0) return;
+  const j = idx + dir;
+  if (j < 0 || j >= plans.length) return;
+  const a = plans[idx], b = plans[j];
+  const sa = a.sort_order, sb = b.sort_order;
+  // 交换排序值；若相同则用 id 次序微调
+  const na = (sa === sb ? j + 1 : sa);
+  const nb = (sa === sb ? idx + 1 : sb);
+  await api('/api/admin/plans/' + a.id, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...a, sort_order: nb }) });
+  await api('/api/admin/plans/' + b.id, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...b, sort_order: na }) });
+  loadMembership();
+}
+
+// ---- Settings ----
+const SETTING_IDS = ['site_name','site_tagline','site_slogan','site_favicon','site_logo','sender_email','sender_name','resend_api_key','epay_api_url','epay_pid','epay_key','currency','commission_rate'];
+const PAY_METHOD_KEYS = ['alipay','wxpay','usdt','stripe'];
+const VIP_ACCESS_KEYS = ['vip_article_access','vip_course_access','vip_virtual_access'];
+const VIP_DEFAULTS = { vip_article_access: '1', vip_course_access: '1', vip_virtual_access: '0' };
+const SOCIAL_KEYS = ['social_bilibili','social_douyin','social_xiaohongshu','social_facebook','social_x','social_youtube','social_instagram'];
+const CS_KEYS = ['cs_chat_url','cs_wechat_qr','cs_whatsapp','cs_telegram'];
+const AI_KEYS = ['ai_base_url','ai_model','ai_api_key'];
+function uploadWechatQr() { const i = $('wechatQrInput'); if (i) i.click(); }
+$('wechatQrInput').addEventListener('change', async (e) => {
+  const file = e.target.files[0]; if (!file) return;
+  const fd = new FormData(); fd.append('file', file);
+  const r = await api('/api/admin/upload', { method: 'POST', body: fd });
+  const d = await r.json();
+  if (d.url) { $('cs_wechat_qr').value = d.url; toast('二维码已上传，记得保存设置'); }
+  else toast(d.error || '上传失败');
+  e.target.value = '';
+});
+async function loadAbout() {
+  const r = await api('/api/admin/settings'); const d = await r.json();
+  const ae = $('about_editor'); if (ae) ae.innerHTML = d.settings.about_content ?? '';
+  ensureAudioDelBtns($('about_editor'));
+}
+async function saveAbout() {
+  stripAudioDelBtns($('about_editor'));
+  const body = { about_content: $('about_editor') ? $('about_editor').innerHTML : '' };
+  await api('/api/admin/settings', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  toast('关于我们已保存');
+}
+async function loadSettings() {
+  const r = await api('/api/admin/settings'); const d = await r.json();
+  for (const k of SETTING_IDS) { const el = $('s_' + k); if (el) el.value = d.settings[k] ?? ''; }
+  const enabled = String(d.settings.pay_methods || 'alipay,wxpay,usdt').split(',').map(s => s.trim());
+  PAY_METHOD_KEYS.forEach(k => { const el = $('pm_' + k); if (el) el.checked = enabled.includes(k); });
+  VIP_ACCESS_KEYS.forEach(k => { const el = $(k); if (el) el.checked = (d.settings[k] ?? VIP_DEFAULTS[k]) !== '0'; });
+  const de = $('vip_product_discount'); if (de) de.value = d.settings.vip_product_discount ?? '100';
+  SOCIAL_KEYS.forEach(k => { const el = $(k); if (el) el.value = d.settings[k] ?? ''; });
+  CS_KEYS.forEach(k => { const el = $(k); if (el) el.value = d.settings[k] ?? ''; });
+  AI_KEYS.forEach(k => { const el = $(k); if (el) el.value = d.settings[k] ?? ''; });
+}
+async function saveSettings() {
+  const body = {};
+  for (const k of SETTING_IDS) { const el = $('s_' + k); if (el) body[k] = el.value; }
+  body.pay_methods = PAY_METHOD_KEYS.filter(k => $('pm_' + k).checked).join(',');
+  VIP_ACCESS_KEYS.forEach(k => { const el = $(k); if (el) body[k] = el.checked ? '1' : '0'; });
+  body.vip_product_discount = $('vip_product_discount') ? ($('vip_product_discount').value || '100') : ($('mvip_product_discount') ? ($('mvip_product_discount').value || '100') : '100');
+  SOCIAL_KEYS.forEach(k => { const el = $(k); if (el) body[k] = el.value.trim(); });
+  CS_KEYS.forEach(k => { const el = $(k); if (el) body[k] = el.value.trim(); });
+  AI_KEYS.forEach(k => { const el = $(k); if (el) body[k] = el.value.trim(); });
+  await api('/api/admin/settings', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  toast('设置已保存');
+}
+let uploadTarget = '';
+function uploadTo(targetId) { uploadTarget = targetId; $('logoFileInput').click(); }
+$('logoFileInput').addEventListener('change', async (e) => {
+  const file = e.target.files[0]; if (!file) return;
+  const fd = new FormData(); fd.append('file', file);
+  const r = await api('/api/admin/upload', { method: 'POST', body: fd });
+  const d = await r.json();
+  if (d.url) { $(uploadTarget).value = d.url; toast('上传成功'); }
+  else toast(d.error || '上传失败');
+  e.target.value = '';
+});
+
+// ---- Users / Orders / Invites ----
+let _users = [];
+async function loadUsers() {
+  const r = await api('/api/admin/users'); const d = await r.json();
+  _users = d.users || [];
+  renderUsers(_users);
+}
+function renderUsers(list) {
+  $('userList').innerHTML = `<table class="table"><thead><tr><th>ID</th><th>邮箱</th><th>昵称</th><th>角色</th><th>验证</th><th>会员</th><th>邀请数</th><th>注册时间</th></tr></thead><tbody>` +
+    list.map(u => `<tr><td>${u.id}</td><td>${esc(u.email)}</td><td>${esc(u.name)}</td><td>${u.role}</td>
+      <td>${u.email_verified ? '✅' : '❌'}</td><td>${esc(u.membership_tier || '-')}</td><td>${u.invited_count}</td><td>${(u.created_at || '').slice(0,10)}</td></tr>`).join('') + '</tbody></table>';
+}
+function filterUsers() {
+  const q = ($('userSearch').value || '').trim().toLowerCase();
+  const list = q ? _users.filter(u => (u.email || '').toLowerCase().includes(q) || (u.name || '').toLowerCase().includes(q) || String(u.id).includes(q)) : _users;
+  renderUsers(list);
+}
+let _orders = [];
+const ORDER_STATUS = { pending: '待支付', paid: '已支付' };
+const ORDER_METHOD = { alipay: '支付宝', wxpay: '微信', usdt: 'USDT', stripe: 'Stripe', vip: 'VIP' };
+async function loadOrders() {
+  const r = await api('/api/admin/orders'); const d = await r.json();
+  _orders = d.orders || [];
+  renderOrders(_orders);
+}
+function renderOrders(list) {
+  $('orderList').innerHTML = `<table class="table"><thead><tr><th>ID</th><th>订单号</th><th>用户</th><th>金额</th><th>方案</th><th>方式</th><th>状态</th><th>时间</th></tr></thead><tbody>` +
+    list.map(o => `<tr><td>${o.id}</td><td>${esc(o.order_no)}</td><td>${esc(o.email || o.user_id)}</td><td>${o.amount} ${o.currency}</td><td>${esc(o.plan)}</td><td>${ORDER_METHOD[o.payment_method] || esc(o.payment_method || '-')}</td><td>${ORDER_STATUS[o.status] || o.status}</td><td>${(o.created_at || '').slice(0,16)}</td></tr>`).join('') + '</tbody></table>';
+}
+function filterOrders() {
+  const from = $('orderDateFrom').value, to = $('orderDateTo').value;
+  const status = $('orderStatus').value, method = $('orderMethod').value;
+  const list = _orders.filter(o => {
+    const d = (o.created_at || '').slice(0, 10);
+    if (from && d < from) return false;
+    if (to && d > to) return false;
+    if (status && o.status !== status) return false;
+    if (method && o.payment_method !== method) return false;
+    return true;
+  });
+  renderOrders(list);
+}
+function resetOrderFilters() {
+  $('orderDateFrom').value = ''; $('orderDateTo').value = '';
+  $('orderStatus').value = ''; $('orderMethod').value = '';
+  renderOrders(_orders);
+}
+async function loadInvites() {
+  const r = await api('/api/admin/invites'); const d = await r.json();
+  $('inviteList').innerHTML = `<table class="table"><thead><tr><th>ID</th><th>邀请人</th><th>被邀请人</th><th>邀请码</th><th>时间</th></tr></thead><tbody>` +
+    d.invites.map(t => `<tr><td>${t.id}</td><td>${esc(t.inviter_email || t.inviter_id)}</td><td>${esc(t.invitee_email || t.invitee_id)}</td><td>${esc(t.invite_code)}</td><td>${(t.created_at || '').slice(0,16)}</td></tr>`).join('') + '</tbody></table>';
+}
+async function loadWithdrawals() {
+  const r = await api('/api/admin/withdrawals'); const d = await r.json();
+  const rows = d.withdrawals.map(w => {
+    const status = w.status === 'pending' ? '<span style="color:var(--gold);">待处理</span>' : w.status === 'paid' ? '<span style="color:var(--teal);">已处理</span>' : '<span style="color:#ff6b6b;">已拒绝</span>';
+    const actions = w.status === 'pending'
+      ? `<button class="btn-ghost" onclick="processWithdrawal(${w.id},'paid')">✅ 已转账</button> <button class="btn-ghost" onclick="processWithdrawal(${w.id},'reject')">❌ 拒绝</button>`
+      : (w.reject_reason ? `<div style="color:#ff6b6b;font-size:.8rem;">原因：${esc(w.reject_reason)}</div>` : '');
+    return `<tr><td>${w.id}</td><td>${esc(w.email || w.user_id)}</td><td>${w.amount}</td><td>${esc(w.method)}</td><td>${esc(w.account)}</td><td>${esc(w.account_name)}</td><td>${status}</td><td>${(w.created_at||'').slice(0,16)}</td><td>${actions}</td></tr>`;
+  }).join('');
+  $('withdrawalList').innerHTML = `<table class="table"><thead><tr><th>ID</th><th>用户</th><th>金额</th><th>方式</th><th>账户</th><th>收款人</th><th>状态</th><th>申请时间</th><th>操作</th></tr></thead><tbody>` + (rows || '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);">暂无提现申请</td></tr>') + '</tbody></table>';
+}
+async function processWithdrawal(id, action) {
+  const body = { action };
+  if (action === 'reject') {
+    const reason = prompt('请输入拒绝原因（金额将退回用户可提现余额）');
+    if (!reason) return;
+    body.reject_reason = reason;
+  } else if (!confirm('确认已向该用户完成转账？')) {
+    return;
+  }
+  const r = await api('/api/admin/withdrawals/' + id, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  const d = await r.json();
+  if (d.error) toast(d.error); else toast('已处理');
+  loadWithdrawals();
+}
+
+function esc(s) {
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// ---- Init ----
+async function loadSiteBranding() {
+  try {
+    const r = await api('/api/admin/settings'); const d = await r.json();
+    const logo = d.settings.site_logo || '';
+    const name = d.settings.site_name || '财经资讯站';
+    const el = $('adminLogo');
+    if (!el) return;
+    if (logo) el.innerHTML = '<img src="' + esc(logo) + '" alt="' + esc(name) + '" style="height:32px;width:auto;display:block;">';
+    else el.textContent = name;
+  } catch (e) {}
+}
+(async function init() {
+  bindImg('productImgInput', 'p_editor');
+  bindImg('aboutImgInput', 'about_editor');
+  bindAudio('audioInput', 'editor');
+  bindAudio('aboutAudioInput', 'about_editor');
+  bindAudio('productAudioInput', 'p_editor');
+  bindEnterKeepFormat('editor');
+  bindEnterKeepFormat('about_editor');
+  bindEnterKeepFormat('p_editor');
+  const mt = $('adminMenuToggle');
+  if (mt) mt.addEventListener('click', function() { const sb = $('adminSidebar'); if (sb) sb.classList.toggle('open'); });
+  const r = await fetch('/api/me', { credentials: 'same-origin' });
+  if (r.ok) {
+    const d = await r.json();
+    if (d.user && d.user.role === 'admin') { ME = d.user; showAdmin(); showView('dashboard'); loadStats(); loadSiteBranding(); return; }
+  }
+  showLogin();
+})();
+</script>
+</body>
+</html>
