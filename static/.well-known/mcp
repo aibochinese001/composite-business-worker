@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "finance-news": {
+      "url": "https://your-worker.workers.dev/mcp/",
+      "type": "http",
+      "description": "财经资讯站 MCP — 公开内容全文，付费内容仅标题+链接。"
+    }
+  }
+}
