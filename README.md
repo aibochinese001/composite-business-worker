@@ -1,6 +1,6 @@
-# 财经资讯站 (Cloudflare Workers)
+# 复合业务系统 (Cloudflare Workers)
 
-一个基于 Cloudflare Workers 的全栈财经资讯站点：支持文章、付费订阅会员、课程、商品商城、邀请返佣、MCP 公开接入等能力。单仓库、零服务器、按量付费。
+一个基于 Cloudflare Workers 的全栈财经资讯站点：支持文章、付费订阅会员、课程、商品商城、邀请返佣、MCP 公开接入等能力。单仓库、零服务器。
 
 > 本仓库为开源模板。仓库内的数据库 ID、域名等均为占位符，首次部署请运行 `npm run setup` 自动创建并回填，详见 [AGENTS.md](./AGENTS.md) 的 AI 部署指南。
 
@@ -69,7 +69,7 @@ npm run deploy
 | `BASE_URL` | 站点基础 URL（邮件链接等） | ⚠️ 推荐 | 你的域名，如 `https://xxx.workers.dev` |
 | D1/R2 绑定 | `DB` / `MEDIA` | ✅ | `npm run setup` 自动配置 |
 
-> 支付（易支付/Stripe）、邮件（Resend）、AI 问答的密钥均存于**后台系统设置**（D1 settings 表），不填时对应功能优雅降级，不影响站点运行。完整清单见 [AGENTS.md](./AGENTS.md) 的「secrets 清单」。
+> 支付（易支付网关）、邮件（Resend）、AI 问答的密钥均存于**后台系统设置**（D1 settings 表），不填时对应功能优雅降级，不影响站点运行。完整清单见 [AGENTS.md](./AGENTS.md) 的「secrets 清单」。
 
 ## 🤖 MCP 接入（公开无鉴权）
 
