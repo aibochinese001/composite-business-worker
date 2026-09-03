@@ -3,7 +3,8 @@
 一个基于 Cloudflare Workers 的全栈财经资讯站点：支持文章、付费订阅会员、课程、商品商城、邀请返佣、MCP 公开接入等能力。单仓库、零服务器。
 
 > 本仓库为开源模板。仓库内的数据库 ID、域名等均为占位符，首次部署请运行 `npm run setup` 自动创建并回填，详见 [AGENTS.md](./AGENTS.md) 的 AI 部署指南。
-＃＃ 用AI Agent 轻松部署，教程：https://opcgrow.org/article.php?id=138
+
+## 用AI Agent 轻松部署，教程：https://opcgrow.org/article.php?id=138
 
 ## ✨ 功能特性
 
